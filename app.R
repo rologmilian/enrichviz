@@ -1,6 +1,6 @@
 # app.R
 # Heatmap, Bar/Bubble Plot, Chord Diagram, Boxplot/Violin visualization
-# v.1.0.9
+# v.1.1.0
 # Copyright 2026 RGM
 # MIT License — see README.md for full license text
 # ─────────────────────────────────────────────────────────
@@ -67,7 +67,8 @@ ui <- fluidPage(
                    label    = "Gene/molecule separator in pathway file",
                    choices  = c("Comma  ( , )"     = ",",
                                 "Slash  ( / )"     = "/",
-                                "Semicolon  ( ; )" = ";"),
+                                "Semicolon  ( ; )" = ";",
+                                "Pipe  ( | )"      = "|"),
                    selected = ",",
                    inline   = TRUE),
       
@@ -87,7 +88,6 @@ ui <- fluidPage(
       
       h4("Bar / Bubble Plot Settings"),
       
-      # ── Plot type toggle ─────────────────────────────────────────────────
       radioButtons("barplot_type",
                    label    = "Plot type",
                    choices  = c("Bar plot" = "bar", "Bubble plot" = "bubble"),
@@ -96,15 +96,13 @@ ui <- fluidPage(
       
       uiOutput("ui_col_pvalue"),
       uiOutput("ui_pvalue_transform_info"),
-      numericInput("bar_top_n",       "Show top N pathways",          value = 20,  min = 5,   max = 200),
+      numericInput("bar_top_n", "Show top N pathways", value = 20, min = 5, max = 200),
       
-      # ── Bar-only controls ────────────────────────────────────────────────
       conditionalPanel(
         condition = "input.barplot_type == 'bar'",
         textInput("bar_color", "Bar fill colour (hex or name)", value = "steelblue")
       ),
       
-      # ── Bubble-only controls ─────────────────────────────────────────────
       conditionalPanel(
         condition = "input.barplot_type == 'bubble'",
         uiOutput("ui_bubble_size_col"),
@@ -127,7 +125,7 @@ ui <- fluidPage(
       
       h4("Chord Diagram Settings"),
       numericInput("chord_top_n",           "Top N pathways to include",            value = 10,   min = 2,   max = 50),
-      numericInput("chord_min_freq",        "Minimum times a molecule must appear", value = 1,    min = 1,   max = 20),
+      numericInput("chord_min_freq",        "Minimum times a molecule must appear", value = 2,    min = 1,   max = 20),
       helpText("Increase 'minimum appearances' to reduce clutter."),
       sliderInput("chord_inner_radius",     "Inner circle size",                    min = 0.1, max = 0.7, value = 0.4, step = 0.05),
       helpText("Reduce to shrink central hole and give more space to labels."),
@@ -214,12 +212,12 @@ ui <- fluidPage(
 # ══════════════════════════════════════════════════════════════════════════════
 server <- function(input, output, session) {
   
-  # ── 1. Load uploaded data ─────────────────────────────────────────────────
+  # 1. Load uploaded data
   norm_prot  <- reactive({ req(input$file_norm_prot);  read.csv(input$file_norm_prot$datapath,  check.names = FALSE) })
   ipa_funct  <- reactive({ req(input$file_ipa_funct);  read.csv(input$file_ipa_funct$datapath,  check.names = FALSE) })
   annotation <- reactive({ req(input$file_annotation); read.csv(input$file_annotation$datapath, check.names = FALSE) })
   
-  # ── 2. Column-selector widgets ────────────────────────────────────────────
+  # 2. Column-selector widgets
   output$ui_col_category <- renderUI({
     req(ipa_funct())
     cols <- colnames(ipa_funct())
@@ -261,7 +259,7 @@ server <- function(input, output, session) {
                 choices = cols, selected = default)
   })
   
-  # ── 3. P-value column selector ────────────────────────────────────────────
+  # 3. P-value column selector
   output$ui_col_pvalue <- renderUI({
     req(ipa_funct())
     cols     <- colnames(ipa_funct())
@@ -274,7 +272,7 @@ server <- function(input, output, session) {
                 choices = cols, selected = default)
   })
   
-  # ── 4. Transformation info ────────────────────────────────────────────────
+  # 4. Transformation info
   pvalue_transform <- reactive({
     req(ipa_funct(), input$col_pvalue)
     raw <- suppressWarnings(as.numeric(ipa_funct()[[input$col_pvalue]]))
@@ -293,7 +291,7 @@ server <- function(input, output, session) {
       helpText("\u26a0 Could not determine transformation. Check column selection.")
   })
   
-  # ── 5. Dynamic colour inputs: one per group ───────────────────────────────
+  # 5. Dynamic colour inputs: one per group
   output$ui_group_colors <- renderUI({
     req(annotation(), input$col_group)
     groups <- unique(as.character(annotation()[[input$col_group]]))
@@ -306,7 +304,7 @@ server <- function(input, output, session) {
     }))
   })
   
-  # ── 6. Sample columns resolved ───────────────────────────────────────────
+  # 6. Sample columns resolved
   sample_cols_resolved <- reactive({
     req(norm_prot(), annotation(), input$col_sample_id)
     ann_ids   <- as.character(annotation()[[input$col_sample_id]])
@@ -314,7 +312,7 @@ server <- function(input, output, session) {
     data_cols[data_cols %in% ann_ids]
   })
   
-  # ── 7. Category dropdown (heatmap) ───────────────────────────────────────
+  # 7. Category dropdown (heatmap)
   output$category_selector <- renderUI({
     req(ipa_funct(), input$col_category)
     choices <- unique(ipa_funct()[[input$col_category]])
@@ -322,7 +320,7 @@ server <- function(input, output, session) {
                 choices = choices, selected = choices[1])
   })
   
-  # ── 8. Gene list from selected category ──────────────────────────────────
+  # 8. Gene list from selected category
   genes_interest <- reactive({
     req(ipa_funct(), input$selected_category, input$col_category,
         input$col_molecules, input$mol_separator)
@@ -333,7 +331,7 @@ server <- function(input, output, session) {
       unlist() %>% trimws() %>% unique()
   })
   
-  # ── 9. Heatmap status ────────────────────────────────────────────────────
+  # 9. Heatmap status
   output$status <- renderText({
     req(genes_interest(), norm_prot(), input$col_gene, sample_cols_resolved())
     matched <- sum(as.character(norm_prot()[[input$col_gene]]) %in% genes_interest())
@@ -349,7 +347,6 @@ server <- function(input, output, session) {
   # BAR / BUBBLE PLOT
   # ══════════════════════════════════════════════════════════════════════════
   
-  # ── Bubble column selectors (server-side) ─────────────────────────────────
   output$ui_bubble_size_col <- renderUI({
     req(ipa_funct())
     cols     <- colnames(ipa_funct())
@@ -375,7 +372,6 @@ server <- function(input, output, session) {
                 choices = cols, selected = default)
   })
   
-  # ── Shared data prep (used by both bar and bubble) ────────────────────────
   barplot_data <- reactive({
     req(ipa_funct(), input$col_category, input$col_pvalue, pvalue_transform())
     df       <- ipa_funct()
@@ -392,7 +388,6 @@ server <- function(input, output, session) {
                                 levels = rev(.data[[input$col_category]])))
   })
   
-  # ── Status text ───────────────────────────────────────────────────────────
   output$barplot_status <- renderText({
     req(ipa_funct(), input$col_pvalue, pvalue_transform(), input$barplot_type)
     base <- paste0(
@@ -407,20 +402,17 @@ server <- function(input, output, session) {
         !is.null(input$bubble_size_col) && !is.null(input$bubble_color_col)) {
       base <- paste0(base,
                      "\nBubble size col  : ", input$bubble_size_col,
-                     "\nBubble colour col: ", input$bubble_color_col
-      )
+                     "\nBubble colour col: ", input$bubble_color_col)
     }
     base
   })
   
-  # ── make_barplot(): branches on input$barplot_type ────────────────────────
   make_barplot <- function() {
     req(barplot_data(), input$barplot_type)
     df      <- barplot_data()
     x_label <- if (pvalue_transform() == "raw")
       paste0("-log10(", input$col_pvalue, ")") else input$col_pvalue
     
-    # ── BAR PLOT ─────────────────────────────────────────────────────────
     if (input$barplot_type == "bar") {
       bar_color <- if (is.null(input$bar_color) || input$bar_color == "") "steelblue" else input$bar_color
       ggplot(df, aes(x = .neg_log10, y = .category)) +
@@ -433,45 +425,32 @@ server <- function(input, output, session) {
               plot.title          = element_text(face = "bold", size = 13),
               panel.grid.major.y  = element_blank())
       
-      # ── BUBBLE PLOT ───────────────────────────────────────────────────────
     } else {
       req(input$bubble_size_col, input$bubble_color_col)
-      
-      # Pull size and colour columns from original file, aligned to df rows
       size_raw  <- suppressWarnings(as.numeric(ipa_funct()[[input$bubble_size_col]]))
       color_raw <- suppressWarnings(as.numeric(ipa_funct()[[input$bubble_color_col]]))
-      
       df$.bub_size  <- size_raw [match(as.character(df[[input$col_category]]),
                                        as.character(ipa_funct()[[input$col_category]]))]
       df$.bub_color <- color_raw[match(as.character(df[[input$col_category]]),
                                        as.character(ipa_funct()[[input$col_category]]))]
-      
-      # Auto-detect if colour column still holds raw p-values -> apply -log10
       color_needs_transform <- all(df$.bub_color >= 0 & df$.bub_color <= 1, na.rm = TRUE)
       if (color_needs_transform) df$.bub_color <- -log10(df$.bub_color)
-      
       color_label <- if (color_needs_transform)
         paste0("-log10(", input$bubble_color_col, ")") else input$bubble_color_col
-      
       palette     <- if (is.null(input$bubble_palette) || input$bubble_palette == "") "Blues" else input$bubble_palette
       use_viridis <- palette %in% c("viridis", "magma", "plasma")
-      
       p <- ggplot(df, aes(x = .neg_log10, y = .category,
                           size = .bub_size, fill = .bub_color)) +
         geom_point(shape = 21, alpha = 0.85, colour = "grey30") +
-        scale_size(name  = input$bubble_size_col,
-                   range = input$bubble_size_range) +
+        scale_size(name  = input$bubble_size_col, range = input$bubble_size_range) +
         labs(title = paste0("Top ", nrow(df), " Enriched Pathways / Functions"),
-             x     = x_label,
-             y     = NULL,
-             fill  = color_label) +
+             x = x_label, y = NULL, fill = color_label) +
         theme_bw(base_size = 12) +
         theme(axis.text.y        = element_text(size = 10),
               axis.text.x        = element_text(size = 10),
               plot.title         = element_text(face = "bold", size = 13),
               panel.grid.major.y = element_blank(),
               legend.position    = "right")
-      
       if (use_viridis) {
         p <- p + scale_fill_viridis_c(option = palette, name = color_label)
       } else {
@@ -484,7 +463,6 @@ server <- function(input, output, session) {
   output$barplot <- renderPlot({ req(barplot_data()); make_barplot() },
                                height = function() input$bar_plot_height)
   
-  # ── Download handlers (filename adapts to plot type) ──────────────────────
   output$download_barplot <- downloadHandler(
     filename = function() if (input$barplot_type == "bubble")
       "Bubbleplot_Enriched_Pathways.png" else "Barplot_Enriched_Pathways.png",
