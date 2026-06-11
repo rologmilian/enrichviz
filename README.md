@@ -131,7 +131,7 @@ Sample_B2, Treated
 
 ### 3. Enriched Pathways or Functions file
 
-Output from an enrichment tool such as Ingenuity Pathway Analysis, g:Profiler, Enrichr, or similar.
+Output from an enrichment tool such as Ingenuity Pathway Analysis, g:Profiler, Enrichr, Gene Set Enrichment Analysis, or similar.
 Rows = pathways or functions.
 
 | Column type | Description |
@@ -335,7 +335,7 @@ useful when groups contain many samples or when the distribution is multimodal.
 |---|---|
 | Category column | Pathway/function name column in the enrichment file |
 | Molecules column | Molecule list column — auto-detects by keyword; defaults to last column |
-| Gene/molecule separator | Delimiter used between molecules in the molecules column: comma, slash, or semicolon |
+| Gene/molecule separator | Delimiter used between molecules in the molecules column: comma, slash, pipe, or semicolon |
 | Gene/Protein ID column | Identifier column in the normalized data file |
 | Sample ID column | Sample name column in the annotation file |
 | Group column | Group/condition column in the annotation file |
@@ -359,7 +359,7 @@ useful when groups contain many samples or when the distribution is multimodal.
 | Input | Default | Description |
 |---|---|---|
 | Top N pathways | 10 | Pathways included, selected by significance |
-| Minimum appearances | 1 | Minimum pathway count for a molecule to appear |
+| Minimum appearances | 2 | Minimum pathway count for a molecule to appear |
 | Inner circle size | 0.4 | Radius of the central hole (0.1–0.7) |
 | Pathway label font size | 0.55 | cex value for pathway sector labels |
 | Molecule label font size | 0.70 | cex value for molecule sector labels |
