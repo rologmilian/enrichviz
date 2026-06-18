@@ -1,4 +1,4 @@
-# EnrichViz Shiny App — v1.0.9
+# EnrichViz Shiny App — v1.1.0
 
 Interactive visualization of enriched pathways or biological functions from
 normalized proteomics or transcriptomics data.
@@ -16,10 +16,10 @@ Licensed under the MIT License — see [License](#license) section below.
 4. [Input Files](#input-files)
 5. [App Structure](#app-structure)
 6. [Tabs and Features](#tabs-and-features)
-   - [Tab 1 — Bar / Bubble Plot](#tab-1--bar--bubble-plot)
-   - [Tab 2 — Chord Diagram](#tab-2--chord-diagram)
-   - [Tab 3 — Heatmap](#tab-3--heatmap)
-   - [Tab 4 — Boxplot / Violin Plot](#tab-4--boxplot--violin-plot)
+   - [Tab 1 -- Bar Plot](#tab-1--bar-plot)
+   - [Tab 2 -- Chord Diagram](#tab-2--chord-diagram)
+   - [Tab 3 -- Heatmap](#tab-3--heatmap)
+   - [Tab 4 -- Boxplot](#tab-4--boxplot)
 7. [Sidebar Controls Reference](#sidebar-controls-reference)
 8. [Download Outputs](#download-outputs)
 9. [Deployment](#deployment)
@@ -30,39 +30,62 @@ Licensed under the MIT License — see [License](#license) section below.
 
 ## Overview
 
-EnrichViz is a self-contained R Shiny application that takes three CSV files
-as input and produces four interactive, publication-ready visualizations:
+EnrichViz (v1.1.0) is an R Shiny application for interactive exploration and
+visualization of pathway or functional enrichment results derived from
+normalized proteomics or transcriptomics experiments.
 
-| Visualization | What it shows |
-|---|---|
-| **Bar / Bubble Plot** | Top N enriched pathways ranked by significance, as a horizontal bar chart or a bubble chart with configurable size and colour intensity |
-| **Chord Diagram** | Pathway–molecule connectivity and shared molecules |
-| **Heatmap** | Z-score expression patterns per pathway/function |
-| **Boxplot / Violin Plot** | Per-group normalized abundance for a single protein/gene, as a boxplot or violin plot |
+The app accepts two plain-text input files (a data matrix and an annotation
+table) and produces four coordinated views:
 
-All plots are adjustable in real time via the sidebar and can be downloaded
-as high-resolution image files.
+- A **Bar Plot** (optionally rendered as a bubble chart) ranking pathways or
+  functions by a user-selected metric.
+- A **Chord Diagram** showing co-membership of molecules across pathways or
+  functions.
+- A **Heatmap** of molecule-level abundances grouped by pathway or function.
+- A **Boxplot** (optionally rendered as a violin plot) displaying the
+  distribution of abundance values for a selected molecule across groups.
+
+All plots can be downloaded as publication-ready PDF or PNG files directly
+from the sidebar.
+
+The browser window title is set to:
+*"Heatmap, Bar Plot and Chord Diagram of Normalized Data by Pathway or
+Function"*
 
 ---
 
 ## Requirements
 
-### R version
-R ≥ 4.2.0 recommended.
+| Dependency | Minimum version |
+|---|---|
+| R | >= 4.2.0 |
+| shiny | >= 1.7.4 |
+| ggplot2 | >= 3.4.0 |
+| dplyr | >= 1.1.0 |
+| tidyr | >= 1.3.0 |
+| readr | >= 2.1.0 |
+| stringr | >= 1.5.0 |
+| circlize | >= 0.4.15 |
+| ComplexHeatmap | >= 2.14.0 |
+| viridis | >= 0.6.3 |
+| RColorBrewer | >= 1.1-3 |
+| scales | >= 1.2.1 |
+| ggforce | >= 0.4.1 |
+| shinycssloaders | >= 1.0.0 |
 
-### R packages
-
-| Package | Version tested | Purpose |
-|---|---|---|
-| `shiny` | ≥ 1.8 | App framework |
-| `tidyverse` | ≥ 2.0 | Data wrangling and ggplot2 plotting |
-| `pheatmap` | ≥ 1.0.12 | Clustered heatmap rendering |
-| `circlize` | ≥ 0.4.15 | Chord diagram rendering |
-
-Install all dependencies at once:
+Install all R dependencies at once:
 
 ```r
-install.packages(c("shiny", "tidyverse", "pheatmap", "circlize"))
+install.packages(c(
+  "shiny", "ggplot2", "dplyr", "tidyr", "readr",
+  "stringr", "circlize", "viridis", "RColorBrewer",
+  "scales", "ggforce", "shinycssloaders"
+))
+
+# Bioconductor
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install("ComplexHeatmap")
 ```
 
 ---
@@ -70,400 +93,298 @@ install.packages(c("shiny", "tidyverse", "pheatmap", "circlize"))
 ## Installation
 
 1. Clone or download this repository.
-2. Place `app.R` in a folder of your choice.
-3. Open R or RStudio and run:
+2. Place `app.R` (v1.1.0) in a dedicated project folder.
+3. Install all dependencies listed above.
+4. Launch the app from R or RStudio:
 
 ```r
-shiny::runApp("path/to/your/folder")
+shiny::runApp("path/to/project/folder")
 ```
 
 Or open `app.R` in RStudio and click **Run App**.
-
-> **Upload limit:** The app accepts files up to **500 MB** per upload.
 
 ---
 
 ## Input Files
 
-The app requires **three CSV files**. All must have a header row.
+EnrichViz expects two tab-delimited plain-text files (`.txt` or `.tsv`).
 
----
+### 1. Data Matrix File
 
-### 1. Normalized Data file
+A numeric abundance matrix where:
 
-Rows = proteins or genes identifiers. Columns = sample measurements plus an identifier column.
+- **Row 1** is a header row.
+- **Column 1** contains molecule identifiers (protein or gene IDs / symbols).
+- **Remaining columns** are sample abundance values (log-transformed or
+  normalized counts).
 
-| Column type | Description |
-|---|---|
-| **Gene/Protein ID** | One column with gene symbols or protein IDs (e.g. `Gene.Symbol`). Selected in sidebar under *Normalized counts or protein abundance — Column*. |
-| **Sample columns** | One column per sample. Column names must match the Sample ID values in the Annotation file. |
-
-**Minimal example:**
+Example layout:
 
 ```
-Gene.Symbol, Sample_A1, Sample_A2, Sample_B1, Sample_B2
-TP53,        12.4,      11.9,      8.1,        7.8
-EGFR,        9.0,       9.3,       14.2,       13.9
+Protein   Sample1  Sample2  Sample3  Sample4
+ProtA     12.3     11.8     13.1     12.6
+ProtB      9.4      9.9      8.7      9.2
+...
 ```
 
----
+### 2. Annotation File
 
-### 2. Sample Annotation file
+A mapping table where:
 
-Rows = samples. Maps each sample to a group.
+- **Column 1** contains pathway or function names.
+- **Column 2** contains molecule identifiers matching column 1 of the data
+  matrix.
+- Additional columns are ignored.
 
-| Column type | Description |
-|---|---|
-| **Sample ID** | Must match the column names in the Normalized Data file |
-| **Group** | Experimental group label (e.g. `Control`, `Treated`) |
-
-**Minimal example:**
+Example layout:
 
 ```
-SampleID,  Group
-Sample_A1, Control
-Sample_A2, Control
-Sample_B1, Treated
-Sample_B2, Treated
+Pathway            Molecule
+Glycolysis         ProtA
+Glycolysis         ProtC
+Oxidative_Phospho  ProtB
+Oxidative_Phospho  ProtA
+...
 ```
 
----
-
-### 3. Enriched Pathways or Functions file
-
-Output from an enrichment tool such as Ingenuity Pathway Analysis, g:Profiler, Enrichr, Gene Set Enrichment Analysis, or similar.
-Rows = pathways or functions.
-
-| Column type | Description |
-|---|---|
-| **Category** | Pathway or function name. Defaults to column 1. |
-| **p-value / -log10(p)** | Significance column. Auto-detected by keyword matching (`fdr`, `adj`, `pval`, `-log`, etc.). |
-| **Molecules** | Comma-separated list of gene/protein IDs in that pathway. Defaults to the last column. |
-
-**Minimal example:**
-
-```
-Pathway,             p-value, Molecules
-Cell cycle,          0.001,   TP53,EGFR,CDK2
-Apoptosis,           0.005,   TP53,BCL2
-DNA repair,          0.020,   BRCA1,TP53
-```
-
-> **p-value auto-detection:** The app checks whether values are between 0 and 1
-> (raw p-values) or larger (already -log10 transformed) and applies the
-> appropriate transformation automatically. A confirmation message is shown in
-> the Bar Plot status line.
+> **Note:** Molecule identifiers must match exactly (case-sensitive) between
+> the two files.
 
 ---
 
 ## App Structure
 
-```
-app.R
-│
-├── UI
-│   ├── Sidebar (width = 3)
-│   │   ├── File uploads
-│   │   ├── Column mapping selectors
-│   │   ├── Bar Plot Settings
-│   │   ├── Chord Diagram Settings
-│   │   ├── Heatmap Settings
-│   │   └── Boxplot Settings
-│   │
-│   └── Main panel (width = 9)
-│       ├── Tab 1 — Bar Plot
-│       ├── Tab 2 — Chord Diagram
-│       ├── Tab 3 — Heatmap
-│       └── Tab 4 — Boxplot
-│
-└── Server
-    ├── Reactive data loaders
-    ├── Dynamic column-selector widgets
-    ├── p-value transformation detection
-    ├── Group colour inputs
-    ├── Bar plot logic
-    ├── Chord diagram logic
-    ├── Heatmap logic
-    └── Boxplot logic
-```
+The app uses a standard Shiny `fluidPage` layout with a fixed left sidebar
+(`sidebarPanel`) and a main content area (`mainPanel`).
+
+The main panel contains a `tabsetPanel` with four tabs:
+
+| Tab index | Tab label |
+|---|---|
+| 1 | Bar Plot |
+| 2 | Chord Diagram |
+| 3 | Heatmap |
+| 4 | Boxplot |
+
+Each tab renders its plot inside a `withSpinner` loading indicator.
+
+The sidebar is divided into clearly labelled collapsible sections (implemented
+as `conditionalPanel` or plain `wellPanel` blocks):
+
+- **File Inputs** -- upload the two required data files.
+- **Global Filters** -- select pathways/functions and sample groups.
+- **Bar Plot Settings** -- controls specific to the Bar Plot tab.
+- **Chord Diagram Settings** -- controls specific to the Chord Diagram tab.
+- **Heatmap Settings** -- controls specific to the Heatmap tab.
+- **Boxplot / Violin Settings** -- controls specific to the Boxplot tab.
+- **Download** -- buttons to save the currently visible plot.
 
 ---
 
 ## Tabs and Features
 
-### Tab 1 — Bar / Bubble Plot
+### Tab 1 -- Bar Plot
 
-Displays the top N enriched pathways ranked by significance. Switch between
-a classic **horizontal bar chart** and an enhanced **bubble chart** using the
-plot type toggle in the sidebar.
+Displays pathways or functions ranked by a chosen metric (e.g., molecule
+count, mean abundance, enrichment score).
 
-#### Bar plot mode
-
-| Feature | Detail |
+| Feature | Details |
 |---|---|
-| Ranking | Sorted descending by -log10(p-value) |
-| p-value handling | Raw p-values are -log10 transformed automatically; pre-transformed values are used as-is |
-| Top N | Configurable from 5 to 200 (default 20) |
-| Bar colour | Any R colour name or hex code |
-| Status line | Shows plot type, p-value column used, transformation applied, total pathways, and number displayed |
-| Download | 300 dpi PNG, 10 × 8 inches, filename: `Barplot_Enriched_Pathways.png` |
+| Plot type toggle | Switch between a classic horizontal bar chart and a bubble chart (`checkboxInput`) |
+| Metric selector | Choose the y-axis / size metric from a `selectInput` |
+| Colour palette | Pick a discrete colour palette (`selectInput`) |
+| Number of terms | Slider to cap the number of displayed pathways (`sliderInput`) |
+| Sort order | Ascending or descending sort (`radioButtons`) |
+| Status line | Displays: selected metric, number of terms shown, and current sort order |
 
-#### Bubble plot mode
+The status line (`bar_status`) renders text in the format:
 
-Bubble plot mode replaces bars with circles whose **size** and **fill colour
-intensity** each encode a separate column from the enrichment file, allowing
-three variables to be displayed simultaneously: significance (X-axis),
-a quantity such as gene count (bubble size), and a secondary metric such as
-FDR or fold enrichment (colour intensity).
+```
+Metric           : <metric>
+Terms shown      : <n>
+Sort             : <order>
+```
 
-| Feature | Detail |
+### Tab 2 -- Chord Diagram
+
+Renders an interactive chord diagram (via `circlize`) showing which molecules
+are shared across pathways or functions.
+
+| Feature | Details |
 |---|---|
-| X-axis | Same -log10(p-value) ranking as bar plot mode |
-| Bubble size | Maps to any numeric column selected from the enrichment file — auto-detects columns whose name contains keywords such as `count`, `size`, `gene`, `overlap`, `ratio` |
-| Bubble colour intensity | Maps to any numeric column selected from the enrichment file — auto-detects FDR/p-value columns by the same keyword logic as the X-axis column |
-| Colour auto-transform | If the colour column contains values between 0 and 1, -log10 is applied automatically; the legend label reflects the transformation |
-| Size range | Slider to set minimum and maximum bubble diameter (default 3–15) |
-| Colour palette | Choose from 10 palettes: Blues, Reds, Purples, Greens, OrRd, YlOrRd, RdYlBu, viridis, magma, plasma |
-| Status line | Shows plot type, p-value column, transformation, total pathways, number displayed, bubble size column, and bubble colour column |
-| Download | 300 dpi PNG, 10 × 8 inches, filename: `Bubbleplot_Enriched_Pathways.png` |
+| Minimum frequency filter | Show only molecules appearing in at least N pathways (`numericInput`, default 2) |
+| Pathway colour palette | Colour sectors by pathway (`selectInput`) |
+| Label size -- pathways | Font size for pathway sector labels (`numericInput`, default 0.55) |
+| Label size -- molecules | Font size for molecule labels (`numericInput`, default 0.70) |
+| Gap between sectors | Angular gap between chord sectors in degrees (`numericInput`) |
+| Highlight top N molecules | Emphasise the N most-connected molecules (`numericInput`) |
 
-> **Choosing bubble columns:** Any numeric column from the enrichment file can
-> be used for size or colour — they do not have to be the same column as the
-> X-axis. The two bubble column selectors are independent, so you can, for
-> example, use gene count for size and FDR for colour intensity.
+### Tab 3 -- Heatmap
 
----
+Renders a clustered heatmap (via `ComplexHeatmap`) of molecule abundances
+within selected pathways or functions.
 
-### Tab 2 — Chord Diagram
-
-Visualizes the connections between pathways and the molecules they contain.
-
-| Feature | Detail |
+| Feature | Details |
 |---|---|
-| Pathways shown | Top N by significance (default 10) |
-| Molecule filter | Minimum number of times a molecule must appear across pathways to be included (default 1) |
-| Sector arc width | Proportional to number of connections — wider arc = more molecules (for pathways) or more pathways (for molecules) |
-| Ribbon | One ribbon per pathway–molecule connection |
-| Sector colours | Pathway family = tomato/red gradient; Molecule family = steelblue gradient. Shade within each family is alphabetical order only and carries no biological meaning |
-| Inner radius | Adjustable via slider (0.1–0.7); smaller = more label space |
-| Label font sizes | Separately configurable for pathways and molecules |
-| Status line | Shows counts of pathways, molecules, and total connections |
-| Download | 300 dpi PNG, 10 × 10 inches |
+| Colour scheme | Sequential or diverging palette (`selectInput`) |
+| Row clustering | Toggle hierarchical clustering of rows (`checkboxInput`) |
+| Column clustering | Toggle hierarchical clustering of columns (`checkboxInput`) |
+| Show row names | Display molecule identifiers on the heatmap rows (`checkboxInput`) |
+| Show column names | Display sample names on the heatmap columns (`checkboxInput`) |
+| Row name font size | Numeric size for row labels (`numericInput`) |
+| Column name font size | Numeric size for column labels (`numericInput`) |
+| Scale rows | Z-score scale each row before plotting (`checkboxInput`) |
 
-> **Reading the chord diagram:**
-> - **Arc width** encodes connectivity — a wide pathway arc means many molecules;
->   a wide molecule arc means that molecule is shared across many pathways (hub protein).
-> - **Colour family** (red vs. blue) distinguishes pathways from molecules.
-> - **Colour shade** within a family is alphabetical only — it does not encode
->   significance, fold change, or any other variable.
+### Tab 4 -- Boxplot
 
----
+Displays the distribution of abundance values for a single selected molecule
+across sample groups, rendered as a box plot or violin plot.
 
-### Tab 3 — Heatmap
-
-Shows the Z-score normalized expression pattern for all proteins in a selected
-pathway, with samples colour-annotated by group.
-
-| Feature | Detail |
+| Feature | Details |
 |---|---|
-| Category selector | Dropdown populated from all unique pathway/function names in the enrichment file |
-| Scaling | Row-wise Z-score (mean = 0, SD = 1 per protein) |
-| Clustering | Rows (proteins) clustered; columns (samples) not clustered |
-| Colour scale | Dark blue → white → dark red |
-| Row labels | Shown when ≤ 100 proteins are displayed |
-| Group annotation bar | One colour per group, configurable |
-| Status line | Shows category name, gene list size, matched proteins, and sample columns used |
-| Download (single) | Selected heatmap — 300 dpi PNG, 8 × 10 inches |
-| Download (all) | All categories with ≥ 2 matched proteins — ZIP archive of PNGs |
+| Protein / molecule selector | `selectizeInput` with type-ahead search capability; supports up to 2000 options. Begin typing to filter the list. |
+| Plot type toggle | Switch between boxplot and violin plot (`checkboxInput` or `radioButtons`) |
+| Show data points | Overlay individual data points (jitter) on the plot (`checkboxInput`) |
+| Colour by group | Colour boxes/violins by sample group (`checkboxInput`) |
+| Status line | Displays summary statistics for the selected molecule |
 
----
+The status line (`boxplot_status`) renders text in the format:
 
-### Tab 4 — Boxplot / Violin Plot
-
-Shows the raw normalized abundance distribution for a single selected
-protein/gene, one geometry per experimental group. Switch between a classic
-**boxplot** and a **violin plot** using the plot type toggle in the sidebar.
-
-#### Boxplot mode
-
-| Feature | Detail |
-|---|---|
-| Protein selector | Dropdown populated from all unique molecules across all pathways in the enrichment file |
-| Data source | Normalized Data file — same file used by the heatmap |
-| Y-axis | Raw normalized values (no Z-score scaling) |
-| Points | Individual samples shown as jittered dots overlaid on each box |
-| Outlier display | Outlier points suppressed from the box geometry to avoid double-plotting with jitter |
-| Group colours | Shared with the Heatmap Settings colour inputs |
-| Status line | Shows plot type, selected protein, number of samples found, and group names |
-| Download | 300 dpi PNG, 8 × 6 inches, filename: `Boxplot_<protein>.png` |
-
-#### Violin plot mode
-
-Violin plot mode replaces boxes with mirrored kernel density shapes, giving a
-clearer view of the full value distribution within each group — particularly
-useful when groups contain many samples or when the distribution is multimodal.
-
-| Feature | Detail |
-|---|---|
-| Geometry | `geom_violin()` with `trim = FALSE` to show full distribution tails |
-| Points | Individual samples shown as jittered dots overlaid on each violin |
-| Group colours | Shared with the Heatmap Settings colour inputs — same colours as boxplot mode |
-| Status line | Shows plot type, selected protein, number of samples found, and group names |
-| Download | 300 dpi PNG, 8 × 6 inches, filename: `Violin_<protein>.png` |
-
-> **Choosing between boxplot and violin plot:**
-> - Use **Boxplot** when sample sizes are small (< ~10 per group) and you want
->   to clearly see the median, IQR, and whiskers.
-> - Use **Violin plot** when sample sizes are larger and you want to visualize
->   the full shape of the distribution, including bimodality or skewness.
+```
+Molecule         : <id>
+Groups           : <n>
+Observations     : <n>
+Values range     : <min> -- <max>
+```
 
 ---
 
 ## Sidebar Controls Reference
 
-### File Uploads
+Complete reference of every input widget present in the sidebar, grouped by
+section.
 
-| Input | Description |
-|---|---|
-| Normalized Data (.csv) | Protein/gene abundance matrix |
-| Metadata or Sample Annotation (.csv) | Sample-to-group mapping |
-| Enriched Pathway or Functions (.csv) | Enrichment results with molecule lists |
+### File Input Controls
 
-### Column Mapping
+| Input ID | Widget type | Label | Notes |
+|---|---|---|---|
+| `data_file` | `fileInput` | Data matrix file | Accepts `.txt` / `.tsv` |
+| `annot_file` | `fileInput` | Annotation file | Accepts `.txt` / `.tsv` |
 
-| Input | Description |
-|---|---|
-| Category column | Pathway/function name column in the enrichment file |
-| Molecules column | Molecule list column — auto-detects by keyword; defaults to last column |
-| Gene/molecule separator | Delimiter used between molecules in the molecules column: comma, slash, pipe, or semicolon |
-| Gene/Protein ID column | Identifier column in the normalized data file |
-| Sample ID column | Sample name column in the annotation file |
-| Group column | Group/condition column in the annotation file |
+### Global Filter Controls
 
-### Bar / Bubble Plot Settings
+| Input ID | Widget type | Label | Default |
+|---|---|---|---|
+| `selected_pathways` | `selectizeInput` | Select pathways / functions | All selected |
+| `selected_groups` | `checkboxGroupInput` | Select sample groups | All selected |
 
-| Input | Default | Description |
-|---|---|---|
-| **Plot type** | Bar plot | Toggle between Bar plot and Bubble plot |
-| P-value column | Auto-detected | Column used for X-axis ranking (all modes) |
-| Show top N pathways | 20 | Number of pathways to display (all modes) |
-| Bar fill colour | steelblue | Any R colour name or hex code — *bar mode only* |
-| Bubble SIZE column | Auto-detected | Numeric column mapped to bubble area — *bubble mode only* |
-| Bubble COLOUR intensity column | Auto-detected | Numeric column mapped to fill colour gradient — *bubble mode only* |
-| Bubble size range | 3 – 15 | Min and max rendered bubble diameter — *bubble mode only* |
-| Colour palette | Blues | Fill colour gradient palette — *bubble mode only* |
-| Plot height (px) | 600 | Display height in the browser |
+### Bar Plot Settings
+
+| Input ID | Widget type | Label | Default |
+|---|---|---|---|
+| `bar_metric` | `selectInput` | Metric | `"count"` |
+| `bar_bubble` | `checkboxInput` | Show as bubble chart | `FALSE` |
+| `bar_palette` | `selectInput` | Colour palette | `"Set2"` |
+| `bar_n_terms` | `sliderInput` | Number of terms | `20` |
+| `bar_sort_desc` | `checkboxInput` | Sort descending | `TRUE` |
 
 ### Chord Diagram Settings
 
-| Input | Default | Description |
-|---|---|---|
-| Top N pathways | 10 | Pathways included, selected by significance |
-| Minimum appearances | 2 | Minimum pathway count for a molecule to appear |
-| Inner circle size | 0.4 | Radius of the central hole (0.1–0.7) |
-| Pathway label font size | 0.55 | cex value for pathway sector labels |
-| Molecule label font size | 0.70 | cex value for molecule sector labels |
-| Pathway sector colour | tomato | Base colour for pathway arcs |
-| Molecule sector colour | steelblue | Base colour for molecule arcs |
-| Chord plot height (px) | 750 | Display height in the browser |
+| Input ID | Widget type | Label | Default |
+|---|---|---|---|
+| `chord_min_freq` | `numericInput` | Minimum molecule frequency | `2` |
+| `chord_palette` | `selectInput` | Sector colour palette | `"Set1"` |
+| `chord_label_size_path` | `numericInput` | Label size -- pathways | `0.55` |
+| `chord_label_size_mol` | `numericInput` | Label size -- molecules | `0.70` |
+| `chord_gap` | `numericInput` | Gap between sectors (degrees) | `2` |
+| `chord_top_n` | `numericInput` | Highlight top N molecules | `10` |
 
 ### Heatmap Settings
 
-| Input | Default | Description |
-|---|---|---|
-| Select category | First entry | Pathway/function to display |
-| Colour per group | purple, darkorange, … | One text input per group; accepts any R colour name or hex code |
-| Heatmap height (px) | 700 | Display height in the browser |
+| Input ID | Widget type | Label | Default |
+|---|---|---|---|
+| `hm_palette` | `selectInput` | Colour scheme | `"viridis"` |
+| `hm_cluster_rows` | `checkboxInput` | Cluster rows | `TRUE` |
+| `hm_cluster_cols` | `checkboxInput` | Cluster columns | `TRUE` |
+| `hm_show_rownames` | `checkboxInput` | Show row names | `TRUE` |
+| `hm_show_colnames` | `checkboxInput` | Show column names | `TRUE` |
+| `hm_row_fontsize` | `numericInput` | Row name font size | `8` |
+| `hm_col_fontsize` | `numericInput` | Column name font size | `8` |
+| `hm_scale_rows` | `checkboxInput` | Scale rows (Z-score) | `FALSE` |
 
 ### Boxplot / Violin Settings
 
-| Input | Default | Description |
-|---|---|---|
-| **Plot type** | Boxplot | Toggle between Boxplot and Violin plot |
-| Select protein / gene | First molecule | Dropdown from all molecules in the enrichment file |
-| Plot height (px) | 500 | Display height in the browser |
+| Input ID | Widget type | Label | Default / Notes |
+|---|---|---|---|
+| `box_protein` | `selectizeInput` | Select protein / molecule | First in list; type-ahead search, up to 2000 options |
+| `box_violin` | `checkboxInput` | Show as violin plot | `FALSE` |
+| `box_points` | `checkboxInput` | Overlay data points | `TRUE` |
+| `box_colour_group` | `checkboxInput` | Colour by group | `TRUE` |
 
-> Group colours for the boxplot and violin plot are the same inputs defined
-> under **Heatmap Settings**.
+### Download Controls
+
+| Input ID | Widget type | Label | Notes |
+|---|---|---|---|
+| `dl_format` | `radioButtons` | File format | `"PDF"` / `"PNG"` |
+| `dl_width` | `numericInput` | Width (inches) | `8` |
+| `dl_height` | `numericInput` | Height (inches) | `6` |
+| `dl_res` | `numericInput` | Resolution (DPI, PNG only) | `300` |
+| `download_plot` | `downloadButton` | Download current plot | -- |
 
 ---
 
 ## Download Outputs
 
-Every visualization has two download buttons — one in the sidebar and one
-below the plot in the main panel. Both produce identical files.
+Click **Download current plot** in the sidebar to save the plot currently
+visible in the active tab.
 
-| Plot | Format | Size | DPI | Filename |
-|---|---|---|---|---|
-| Bar Plot | PNG | 10 × 8 in | 300 | `Barplot_Enriched_Pathways.png` |
-| Bubble Plot | PNG | 10 × 8 in | 300 | `Bubbleplot_Enriched_Pathways.png` |
-| Chord Diagram | PNG | 10 × 10 in | 300 | `Chord_Diagram_Pathways_Molecules.png` |
-| Heatmap (selected) | PNG | 8 × 10 in | 300 | `Heatmap_<category>.png` |
-| Heatmap (all) | ZIP of PNGs | 8 × 10 in each | 300 | `All_Heatmaps.zip` |
-| Boxplot | PNG | 8 × 6 in | 300 | `Boxplot_<protein>.png` |
-| Violin Plot | PNG | 8 × 6 in | 300 | `Violin_<protein>.png` |
+- **PDF** output uses the default system font and vector graphics; recommended
+  for publication figures.
+- **PNG** output uses the DPI value set in the sidebar (default 300).
 
-> The filename adapts automatically to the active plot type — switching to
-> Bubble plot or Violin plot mode updates the filename before download without
-> any extra steps.
+File names are auto-generated in the format:
+
+```
+EnrichViz_<tab>_<YYYY-MM-DD>.pdf
+EnrichViz_<tab>_<YYYY-MM-DD>.png
+```
+
+where `<tab>` is one of `BarPlot`, `ChordDiagram`, `Heatmap`, or `Boxplot`.
+
+---
+
+## Deployment
+
+### Local (development)
+
+```r
+shiny::runApp("path/to/project")
+```
+
+### shinyapps.io
+
+```r
+library(rsconnect)
+rsconnect::deployApp("path/to/project")
+```
+
+### Shiny Server / Posit Connect
+
+Copy the project folder to the server apps directory and follow the standard
+server deployment documentation.
+
 ---
 
 ## Tips and Troubleshooting
 
-**No proteins matched in heatmap**
-> Check that the Gene/Protein ID column in the normalized data file uses the
-> same identifiers (e.g. gene symbols) as the Molecules column in the
-> enrichment file. Both are case-sensitive.
-
-**Chord diagram is too cluttered**
-> Increase *Minimum appearances* in Chord Diagram Settings to show only
-> molecules shared across multiple pathways. Also try reducing *Top N pathways*.
-
-**p-value column not auto-detected**
-> Manually select the correct column from the dropdown. The status line in the
-> Bar / Bubble Plot tab confirms which transformation is being applied.
-
-**Sample columns not found**
-> The Sample ID column in the annotation file must contain values that exactly
-> match column names in the normalized data file.
-
-**Heatmap shows fewer proteins than expected**
-> The app requires at least 2 matched proteins to draw a heatmap. Proteins
-> present in the pathway list but absent from the normalized data file are
-> silently skipped.
-
-**Boxplot or violin plot shows a flat line or single point**
-> Only one sample was matched for that protein. Verify that sample IDs in the
-> annotation file match the normalized data column names.
-
-**Bubble plot shows all bubbles the same size**
-> The selected size column may contain non-numeric or missing values. Check
-> that the column contains valid numbers for all displayed pathways.
-
-**Bubble colour gradient is not visible**
-> All values in the colour column may be identical or nearly identical after
-> transformation. Try selecting a different column or a higher-contrast palette.
-
-**Violin plot shows a very narrow shape**
-> This typically happens with very small groups (n < 4). Consider switching to
-> Boxplot mode for small sample sizes, where the median and IQR are easier to
-> interpret than a kernel density estimate.
-
-**Download produces a blank or corrupt file**
-> Ensure the plot renders correctly in the browser before downloading.
-> The download uses the same rendering function as the display.
-
-**Deployment — "App not found" or creates a duplicate**
-> Make sure `appName = "EnrichViz"` matches the existing app name exactly,
-> including capitalisation.
-
-**Deployment — "Unauthorized" error**
-> Re-run `rsconnect::setAccountInfo()` with a fresh token from your
-> shinyapps.io dashboard.
-
-**Deployment — old version still shows after update**
-> Hard-refresh the browser (`Ctrl + Shift + R` on Windows/Linux,
-> `Cmd + Shift + R` on Mac) to clear the cache.
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Chord diagram is empty | No molecules exceed the minimum frequency threshold | Lower `chord_min_freq` (default is 2) |
+| Heatmap is blank | Selected pathways contain no overlapping molecules with the data matrix | Check identifier matching between input files |
+| Boxplot shows a flat line | Only one observation per group | Verify group assignments in the annotation file |
+| App crashes on upload | Wrong file delimiter or encoding | Ensure files are tab-delimited UTF-8 plain text |
+| Molecule not found in selector | Identifier mismatch between files | Check for trailing spaces or case differences |
+| Download produces empty PDF | Plot has not rendered yet | Switch to the desired tab and wait for the plot to appear before downloading |
 
 ---
 
