@@ -238,10 +238,17 @@ server <- function(input, output, session) {
   
   output$ui_col_gene <- renderUI({
     req(norm_prot())
-    cols    <- colnames(norm_prot())
-    default <- if (length(cols) >= 3) cols[3] else cols[1]
-    selectInput("col_gene", label = paste0("Gene/Protein ID column (detected: '", default, "')"),
-                choices = cols, selected = default)
+    cols     <- colnames(norm_prot())
+    keywords <- c("gene_symbol", "gene.symbol", "genesymbol",
+                  "symbol", "gene_name", "genename",
+                  "gene", "protein", "uniprot", "id", "name")
+    detected <- cols[sapply(tolower(cols), function(x)
+      any(sapply(keywords, function(k) grepl(k, x, fixed = TRUE))))]
+    default  <- if (length(detected) > 0) detected[1] else cols[1]
+    selectInput("col_gene",
+                label   = paste0("Gene/Protein ID column (detected: '", default, "')"),
+                choices = cols,
+                selected = default)
   })
   
   output$ui_col_sample_id <- renderUI({
@@ -376,16 +383,22 @@ server <- function(input, output, session) {
     req(ipa_funct(), input$col_category, input$col_pvalue, pvalue_transform())
     df       <- ipa_funct()
     raw_vals <- suppressWarnings(as.numeric(df[[input$col_pvalue]]))
-    df %>%
+    
+    df_out <- df %>%
       mutate(
         .raw       = raw_vals,
         .neg_log10 = if (pvalue_transform() == "raw") -log10(.raw) else .raw
       ) %>%
       filter(!is.na(.neg_log10), is.finite(.neg_log10)) %>%
       arrange(desc(.neg_log10)) %>%
-      slice_head(n = input$bar_top_n) %>%
-      mutate(.category = factor(.data[[input$col_category]],
-                                levels = rev(.data[[input$col_category]])))
+      slice_head(n = input$bar_top_n)
+    
+    # unique() prevents duplicated level error when category names repeat
+    cat_levels <- rev(unique(as.character(df_out[[input$col_category]])))
+    
+    df_out %>%
+      mutate(.category = factor(as.character(.data[[input$col_category]]),
+                                levels = cat_levels))
   })
   
   output$barplot_status <- renderText({
@@ -563,19 +576,36 @@ server <- function(input, output, session) {
     req(input$col_gene, input$col_sample_id, input$col_group)
     data <- norm_prot()
     ann  <- annotation()
+    
     ann_ordered <- ann[order(as.character(ann[[input$col_group]])), ]
     ann_ids_ord <- as.character(ann_ordered[[input$col_sample_id]])
     data_cols   <- colnames(data)
     sample_cols <- data_cols[data_cols %in% ann_ids_ord]
     sample_cols <- sample_cols[order(match(sample_cols, ann_ids_ord))]
+    
     if (!is.null(gene_filter)) {
       data <- data[as.character(data[[input$col_gene]]) %in% as.character(gene_filter), ]
     }
-    validate(need(nrow(data) > 1,
-                  "Fewer than 2 proteins matched — cannot draw heatmap. Try another category."))
+    
+    validate(
+      need(nrow(data) > 1,
+           paste0("Fewer than 2 genes matched in the normalized data.\n",
+                  "Check that the correct Gene/Protein ID column is selected.\n",
+                  "Genes searched: ", paste(head(gene_filter, 5), collapse = ", "), "...\n",
+                  "Gene column used: '", input$col_gene, "'"))
+    )
+    
     mat           <- as.matrix(data[, sample_cols, drop = FALSE])
     rownames(mat) <- as.character(data[[input$col_gene]])
-    mat_scaled    <- t(scale(t(mat)))
+    
+    # Guard: remove rows with zero variance (would produce NaN after scaling)
+    row_vars <- apply(mat, 1, var, na.rm = TRUE)
+    mat      <- mat[!is.na(row_vars) & row_vars > 0, , drop = FALSE]
+    
+    validate(need(nrow(mat) > 1,
+                  "All matched genes have zero variance across samples — cannot draw heatmap."))
+    
+    mat_scaled <- t(scale(t(mat)))
     col_annotation           <- data.frame(as.character(ann_ordered[[input$col_group]]),
                                            row.names   = as.character(ann_ordered[[input$col_sample_id]]),
                                            check.names = FALSE)
@@ -671,9 +701,16 @@ server <- function(input, output, session) {
     mols_present <- all_molecules()[all_molecules() %in% gene_col]
     validate(need(length(mols_present) > 0,
                   "No molecules from the pathway file found in the normalized data."))
-    selectInput("boxplot_protein",
-                label   = paste0("Select protein / gene (", length(mols_present), " matched)"),
-                choices = mols_present, selected = mols_present[1])
+    selectizeInput(                          # ← changed from selectInput
+      inputId  = "boxplot_protein",
+      label    = paste0("Search protein / gene (", length(mols_present), " matched)"),
+      choices  = mols_present,
+      selected = mols_present[1],
+      options  = list(
+        placeholder      = "Type to search...",
+        maxOptions       = 2000            # ← ensures all 1781 are searchable
+      )
+    )
   })
   
   boxplot_data <- reactive({
