@@ -1,6 +1,6 @@
 # app.R
 # Heatmap, Bar/Bubble Plot, Chord Diagram, Boxplot/Violin visualization
-# v.1.2.0  — adds metadata slice/filter panel
+# v.1.3.0  — adds a molecule frequency per pathway plot
 # Copyright 2026 RGM
 # MIT License — see README.md for full license text
 # ─────────────────────────────────────────────────────────
@@ -101,7 +101,7 @@ ui <- fluidPage(
       
       hr(),
       
-      # ── NEW: Metadata slice filter ────────────────────────────────────────
+      #  Metadata slice filter 
       div(
         id = "filter_panel",
         h4("\U0001f50d Filter Samples by Metadata"),
@@ -194,6 +194,33 @@ ui <- fluidPage(
       
       hr(),
       
+      h4("Gene Frequency Plot Settings"),
+      radioButtons(
+        "freq_pathway_scope",
+        "Pathways used to compute gene frequency",
+        choices  = c("All pathways" = "all", "Top N pathways (by significance)" = "top"),
+        selected = "all",
+        inline   = FALSE
+      ),
+      conditionalPanel(
+        condition = "input.freq_pathway_scope == 'top'",
+        numericInput("freq_top_n_pathways",
+                     "Top N pathways",
+                     value = 20, min = 2, max = 200)
+      ),
+      numericInput("freq_min_pathways",
+                   "Minimum # pathways a gene must appear in",
+                   value = 5, min = 1, max = 100),
+      numericInput("freq_top_n_genes",
+                   "Show top N genes (after filtering)",
+                   value = 50, min = 5, max = 500),
+      numericInput("freq_plot_height",
+                   "Frequency plot height (px)",
+                   value = 600, min = 300, max = 2000),
+      downloadButton("download_gene_freq", "Download Frequency Plot (.png)"),
+      
+      hr(),
+      
       h4("Heatmap Settings"),
       uiOutput("category_selector"),
       hr(),
@@ -239,6 +266,14 @@ ui <- fluidPage(
                  plotOutput("chord_plot", height = "750px"),
                  br(),
                  downloadButton("download_chord_main", "\u2b07 Download Chord Diagram (.png)")
+        ),
+        
+        tabPanel("Gene Frequency",
+                 br(),
+                 verbatimTextOutput("gene_freq_status"),
+                 plotOutput("gene_freq_plot", height = "600px"),
+                 br(),
+                 downloadButton("download_gene_freq_main", "\u2b07 Download Plot (.png)")
         ),
         
         tabPanel("Heatmap",
@@ -713,6 +748,99 @@ server <- function(input, output, session) {
   dl_chord_handler  <- function(file) { png(file, width = 10, height = 10, units = "in", res = 300); make_chord(); dev.off() }
   output$download_chord      <- downloadHandler(filename = function() "Chord_Diagram_Pathways_Molecules.png", content = dl_chord_handler)
   output$download_chord_main <- downloadHandler(filename = function() "Chord_Diagram_Pathways_Molecules.png", content = dl_chord_handler)
+  
+  # ══════════════════════════════════════════════════════════════════════════
+  # GENE FREQUENCY BAR PLOT (All pathways OR Top N pathways)
+  # ══════════════════════════════════════════════════════════════════════════
+  gene_freq_data <- reactive({
+    req(ipa_funct(), input$col_category, input$col_molecules,
+        input$mol_separator, input$freq_pathway_scope)
+    
+    df <- ipa_funct()
+    
+    # Option: restrict to Top N pathways by significance
+    if (input$freq_pathway_scope == "top") {
+      req(input$col_pvalue, pvalue_transform(), input$freq_top_n_pathways)
+      
+      raw_vals <- suppressWarnings(as.numeric(df[[input$col_pvalue]]))
+      df <- df %>%
+        mutate(.neg_log10 = if (pvalue_transform() == "raw") -log10(raw_vals) else raw_vals) %>%
+        filter(!is.na(.neg_log10), is.finite(.neg_log10)) %>%
+        arrange(desc(.neg_log10)) %>%
+        slice_head(n = input$freq_top_n_pathways)
+    }
+    
+    # Expand pathway→gene membership
+    edges <- df %>%
+      select(pathway = all_of(input$col_category), molecules = all_of(input$col_molecules)) %>%
+      mutate(molecules = strsplit(as.character(molecules), input$mol_separator, fixed = TRUE)) %>%
+      unnest(molecules) %>%
+      mutate(molecules = trimws(molecules)) %>%
+      filter(molecules != "", !is.na(molecules)) %>%
+      distinct(pathway, molecules)
+    
+    # Count distinct pathways per molecule
+    edges %>%
+      count(molecules, name = "pathway_count") %>%
+      arrange(desc(pathway_count), molecules)
+  })
+  
+  output$gene_freq_status <- renderText({
+    req(gene_freq_data(), input$freq_min_pathways, input$freq_top_n_genes)
+    
+    gf <- gene_freq_data()
+    gf_filt <- gf %>% filter(pathway_count >= input$freq_min_pathways)
+    
+    scope_line <- if (input$freq_pathway_scope == "all") {
+      paste0("Pathways used   : ALL (", n_distinct(ipa_funct()[[input$col_category]]), ")")
+    } else {
+      paste0("Pathways used   : TOP ", input$freq_top_n_pathways,
+             " (ranked by ", input$col_pvalue, ")")
+    }
+    
+    paste0(
+      scope_line, "\n",
+      "Genes total     : ", nrow(gf), "\n",
+      "Genes with >= ", input$freq_min_pathways, " pathways: ", nrow(gf_filt), "\n",
+      "Showing top     : ", min(input$freq_top_n_genes, nrow(gf_filt))
+    )
+  })
+  
+  make_gene_freq_plot <- function() {
+    req(gene_freq_data(), input$freq_min_pathways, input$freq_top_n_genes)
+    
+    gf <- gene_freq_data() %>%
+      filter(pathway_count >= input$freq_min_pathways) %>%
+      slice_head(n = input$freq_top_n_genes)
+    
+    validate(need(nrow(gf) > 0,
+                  "No genes meet the frequency cutoff. Lower the cutoff or expand pathway scope."))
+    
+    ggplot(gf, aes(x = reorder(molecules, -pathway_count), y = pathway_count)) +
+      geom_col(fill = "steelblue", color = "white") +
+      labs(
+        title = paste0("Genes appearing in \u2265 ", input$freq_min_pathways, " pathways"),
+        x = "Gene",
+        y = "Number of pathways"
+      ) +
+      theme_classic() +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 7))
+  }
+  
+  output$gene_freq_plot <- renderPlot({
+    make_gene_freq_plot()
+  }, height = function() input$freq_plot_height)
+  
+  dl_gene_freq_filename <- function() {
+    paste0("Gene_Frequency_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".png")
+  }
+  dl_gene_freq_handler <- function(file) {
+    ggsave(file, plot = make_gene_freq_plot(),
+           width = 12, height = 7, dpi = 300, units = "in")
+  }
+  
+  output$download_gene_freq      <- downloadHandler(filename = dl_gene_freq_filename, content = dl_gene_freq_handler)
+  output$download_gene_freq_main <- downloadHandler(filename = dl_gene_freq_filename, content = dl_gene_freq_handler)
   
   # ══════════════════════════════════════════════════════════════════════════
   # HEATMAP  — now uses filtered annotation + filtered sample columns
