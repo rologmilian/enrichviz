@@ -10,6 +10,7 @@ library(pheatmap)
 library(tidyverse)
 library(circlize)
 
+
 options(shiny.maxRequestSize = 500 * 1024^2)
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -223,6 +224,11 @@ ui <- fluidPage(
       
       h4("Heatmap Settings"),
       uiOutput("category_selector"),
+      
+      # clustering toggles 
+      checkboxInput("heatmap_cluster_rows", "Cluster rows",    value = TRUE),
+      checkboxInput("heatmap_cluster_cols", "Cluster columns", value = FALSE),
+      
       hr(),
       uiOutput("ui_group_colors"),
       numericInput("plot_height", "Heatmap height (px)", value = 700, min = 300, max = 2000),
@@ -909,7 +915,8 @@ server <- function(input, output, session) {
       mat_scaled,
       annotation_col    = col_annotation,
       annotation_colors = ann_colors,
-      cluster_rows      = TRUE, cluster_cols = FALSE,
+      cluster_rows      = isTRUE(input$heatmap_cluster_rows),   # ← NEW
+      cluster_cols      = isTRUE(input$heatmap_cluster_cols),   # ← NEW
       show_rownames     = nrow(mat) <= 100, show_colnames = TRUE,
       scale             = "none",
       color             = colorRampPalette(c("darkblue", "white", "darkred"))(100),

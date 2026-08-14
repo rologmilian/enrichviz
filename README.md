@@ -410,7 +410,7 @@ rapid identification of hub molecules shared by many biological processes.
 ### Tab 4 -- Heatmap
 
 Renders a clustered heatmap (via `pheatmap`) of Z-score normalised molecule
-abundances for a selected pathway or function, using only the filtered samples.
+abundances for a selected pathway or function, using only the filtered samples. User can select clustering or not the columns/samples
 
 | Feature | Details |
 |---|---|
