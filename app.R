@@ -229,6 +229,11 @@ ui <- fluidPage(
       checkboxInput("heatmap_cluster_rows", "Cluster rows",    value = TRUE),
       checkboxInput("heatmap_cluster_cols", "Cluster columns", value = FALSE),
       
+      # Colour scale limit
+      sliderInput("heatmap_scale_limit",
+                  "Heatmap colour scale limit (± Z-score)",
+                  min = 1, max = 4, value = 2, step = 0.5),
+      
       hr(),
       uiOutput("ui_group_colors"),
       numericInput("plot_height", "Heatmap height (px)", value = 700, min = 300, max = 2000),
@@ -890,6 +895,9 @@ server <- function(input, output, session) {
                   "All matched genes have zero variance across samples \u2014 cannot draw heatmap."))
     
     mat_scaled <- t(scale(t(mat)))
+     
+    breaks_sym <- seq(-input$heatmap_scale_limit, input$heatmap_scale_limit, length.out = 101)
+    
     col_annotation           <- data.frame(as.character(ann_ordered[[input$col_group]]),
                                            row.names   = as.character(ann_ordered[[input$col_sample_id]]),
                                            check.names = FALSE)
@@ -920,6 +928,7 @@ server <- function(input, output, session) {
       show_rownames     = nrow(mat) <= 100, show_colnames = TRUE,
       scale             = "none",
       color             = colorRampPalette(c("darkblue", "white", "darkred"))(100),
+      breaks            = breaks_sym,
       border_color      = NA, fontsize_row = 8, fontsize_col = 10,
       main              = paste0(title_text, filter_subtitle)
     )
