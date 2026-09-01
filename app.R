@@ -1,6 +1,6 @@
 # app.R
 # Heatmap, Bar/Bubble Plot, Chord Diagram, Boxplot/Violin visualization
-# v.1.4.0  — adds a filter for pathway name and molecule column
+# v.1.3.1  — adds a filter for pathway name and molecule column
 # Copyright 2026 RGM
 # MIT License — see README.md for full license text
 # ─────────────────────────────────────────────────────────
