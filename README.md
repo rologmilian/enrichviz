@@ -1,4 +1,4 @@
-# EnrichViz Shiny App — v1.3.0
+# EnrichViz Shiny App — v1.3.1
 
 Interactive visualization of enriched pathways or biological functions from
 normalized proteomics, transcriptomics, or metabolomics data.
@@ -11,29 +11,30 @@ Licensed under the MIT License — see [License](#license) section below.
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [What's New in v1.3.0](#whats-new-in-v130)
-3. [What's New in v1.2.0](#whats-new-in-v120)
-4. [Requirements](#requirements)
-5. [Installation](#installation)
-6. [Input Files](#input-files)
-7. [App Structure](#app-structure)
-8. [Tabs and Features](#tabs-and-features)
+2. [What's New in v1.3.1](#whats-new-in-v131)
+3. [What's New in v1.3.0](#whats-new-in-v130)
+4. [What's New in v1.2.0](#whats-new-in-v120)
+5. [Requirements](#requirements)
+6. [Installation](#installation)
+7. [Input Files](#input-files)
+8. [App Structure](#app-structure)
+9. [Tabs and Features](#tabs-and-features)
    - [Tab 1 -- Bar Plot](#tab-1--bar-plot)
    - [Tab 2 -- Chord Diagram](#tab-2--chord-diagram)
    - [Tab 3 -- Gene Frequency](#tab-3--gene-frequency)
    - [Tab 4 -- Heatmap](#tab-4--heatmap)
    - [Tab 5 -- Boxplot](#tab-5--boxplot)
-9. [Sidebar Controls Reference](#sidebar-controls-reference)
-10. [Download Outputs](#download-outputs)
-11. [Deployment](#deployment)
-12. [Tips and Troubleshooting](#tips-and-troubleshooting)
-13. [License](#license)
+10. [Sidebar Controls Reference](#sidebar-controls-reference)
+11. [Download Outputs](#download-outputs)
+12. [Deployment](#deployment)
+13. [Tips and Troubleshooting](#tips-and-troubleshooting)
+14. [License](#license)
 
 ---
 
 ## Overview
 
-EnrichViz (v1.3.0) is an R Shiny application for interactive exploration and
+EnrichViz (v1.3.1) is an R Shiny application for interactive exploration and
 visualization of pathway or functional enrichment results derived from
 normalized proteomics or transcriptomics experiments.
 
@@ -58,6 +59,95 @@ from the sidebar or from within each tab.
 The browser window title is set to:
 *"Heatmap, Bar Plot and Chord Diagram of Normalized Data by Pathway or
 Function"*
+
+---
+
+## What's New in v1.3.1
+
+### Dual Keyword Filter for Pathways
+
+This release adds a **Keyword Filter — Pathways** panel, styled in yellow and
+placed just below the **Bar / Bubble Plot Settings** header in the sidebar.
+It allows users to restrict the pathway or function table used by all
+downstream plots without modifying the uploaded enrichment file.
+
+Two independent text inputs are provided, intentionally kept separate to avoid
+ambiguous matches:
+
+| Text box | Searches in | Example input |
+|---|---|---|
+| **Filter by pathway name** | Pathway / function name column (`col_category`) | `immune, signaling, metabolism` |
+| **Filter by molecule / gene symbol** | Molecule members column (`col_molecules`) | `MAPK1, TP53, EGFR` |
+
+#### Why two separate boxes?
+
+Combining both searches into a single field would cause a gene symbol such as
+`MAPK1` to match pathways where that symbol appears anywhere — including
+pathways whose **name** does not relate to MAPK signalling but whose member
+list happens to contain `MAPK1`. Keeping the two filters separate gives full
+control: search by pathway concept, by gene membership, or by both
+simultaneously.
+
+#### Logic
+
+- Keywords within each box are separated by commas and matched with **OR
+  logic** (case-insensitive).
+- If **both** boxes contain text, they combine with **AND logic**: a pathway
+  must satisfy both conditions to be retained.
+- Leaving a box blank imposes no constraint from that box.
+- Leaving **both** boxes blank restores the full pathway table — behaviour is
+  identical to previous versions.
+
+#### Examples
+
+| Pathway name filter | Molecule filter | Result |
+|---|---|---|
+| `MAPK` | *(blank)* | Only pathways whose **name** contains "MAPK" |
+| *(blank)* | `MAPK1, MAPK3` | All pathways that **contain** MAPK1 or MAPK3 as members |
+| `signaling` | `TP53` | Pathways **named** with "signaling" **AND** containing TP53 as a member |
+| *(both blank)* | *(both blank)* | All pathways — no filtering |
+
+#### Live summary badge
+
+A summary badge immediately below the two text inputs shows how many pathways
+are currently retained out of the total — for example:
+
+```
+✅  12 / 87 pathways retained — pathway name: signaling  AND  molecule: TP53
+ℹ️  Using all 87 pathways (no keyword filter active).
+```
+
+#### What is affected
+
+The filter is applied through a single `ipa_funct_filtered()` reactive that
+all downstream consumers use:
+
+| Plot / control | Effect |
+|---|---|
+| Bar / Bubble Plot | Only filtered pathways are ranked and displayed |
+| Chord Diagram | Only filtered pathways contribute edges and molecules |
+| Gene Frequency Plot | Frequency counts are computed from filtered pathways only |
+| Heatmap category selector | Dropdown lists only the filtered pathway names |
+
+#### What is not affected
+
+- Column-selector widgets (`col_pvalue`, `col_molecules`, `col_category`, etc.)
+  always read from the unfiltered `ipa_funct()` so that column detection is
+  never disrupted by an active filter.
+- The **Download ALL Heatmaps (.zip)** handler iterates over `ipa_funct()` to
+  preserve the full set of per-category heatmaps in the archive.
+
+#### Implementation notes
+
+- The reactive `ipa_funct_filtered()` is defined immediately after the three
+  file-loader reactives and before all plot reactives.
+- Each keyword box splits its input on `\\s*,\\s*`, builds a single regex
+  pattern with `|` as the OR operator, and applies `grepl(..., ignore.case =
+  TRUE)` against the respective column.
+- The two filter steps are applied sequentially (pathway name first, then
+  molecule), so the AND combination requires no additional logic.
+- The summary badge reactive `ui_keyword_filter_summary` mirrors the pattern
+  used by the existing metadata filter badge (`ui_filter_summary`).
 
 ---
 
@@ -232,7 +322,7 @@ install.packages(c(
 ## Installation
 
 1. Clone or download this repository.
-2. Place `app.R` (v1.3.0) in a dedicated project folder.
+2. Place `app.R` (v1.3.1) in a dedicated project folder.
 3. Install all dependencies listed above.
 4. Launch the app from R or RStudio:
 
@@ -343,6 +433,9 @@ The sidebar is divided into clearly labelled sections:
 - **Sample Annotation -- Column** -- sample ID and group column selectors.
 - **Bar / Bubble Plot Settings** -- plot type, p-value column, top N,
   colour / palette controls.
+- **Keyword Filter — Pathways** *(new in v1.3.1)* -- two independent text
+  inputs for filtering by pathway name and by molecule/gene symbol; live
+  count badge; affects all downstream plots.
 - **Chord Diagram Settings** -- top N, minimum frequency, inner radius,
   label sizes, sector colours.
 - **Gene Frequency Plot Settings** *(new in v1.3.0)* -- pathway scope toggle,
@@ -373,6 +466,7 @@ Displays pathways or functions ranked by a chosen p-value metric.
 | Bubble size range | Min/max point size (`sliderInput`, default 3-15) |
 | Bubble palette | Sequential or diverging colour palette (`selectInput`) |
 | Plot height | Adjustable rendering height in pixels (`numericInput`, default 600) |
+| Keyword filter | Pathway name and/or molecule filter applied upstream via `ipa_funct_filtered()` *(new in v1.3.1)* |
 | Status line | Reports active metadata filter, plot type, p-value column, transformation applied, total and displayed pathway counts |
 
 ### Tab 2 -- Chord Diagram
@@ -390,6 +484,7 @@ the top N pathways or functions.
 | Pathway sector colour | Hex or named colour for pathway arcs (`textInput`, default `tomato`) |
 | Molecule sector colour | Hex or named colour for molecule arcs (`textInput`, default `steelblue`) |
 | Plot height | Adjustable rendering height in pixels (`numericInput`, default 750) |
+| Keyword filter | Pathway name and/or molecule filter applied upstream via `ipa_funct_filtered()` *(new in v1.3.1)* |
 | Status line | Reports active metadata filter, pathway count, molecule count, total connections, minimum frequency, and inner radius |
 
 ### Tab 3 -- Gene Frequency
@@ -404,17 +499,19 @@ rapid identification of hub molecules shared by many biological processes.
 | Minimum pathway count | Only display genes appearing in at least this many pathways (`numericInput`, default 5) |
 | Top N genes | Maximum number of genes shown after filtering (`numericInput`, default 50) |
 | Plot height | Adjustable rendering height in pixels (`numericInput`, default 600) |
+| Keyword filter | Pathway name and/or molecule filter applied upstream via `ipa_funct_filtered()` *(new in v1.3.1)* |
 | Status line | Reports active pathway scope, total gene count, genes meeting the minimum threshold, and number of genes displayed |
 | Download | PNG (12 x 7 in, 300 DPI); file name includes a timestamp |
 
 ### Tab 4 -- Heatmap
 
 Renders a clustered heatmap (via `pheatmap`) of Z-score normalised molecule
-abundances for a selected pathway or function, using only the filtered samples. User can select clustering or not the columns/samples
+abundances for a selected pathway or function, using only the filtered samples.
+User can select clustering or not for the columns/samples.
 
 | Feature | Details |
 |---|---|
-| Category selector | Choose one pathway or function to visualise (`selectInput`) |
+| Category selector | Choose one pathway or function to visualise (`selectInput`); list is restricted to keyword-filtered pathways *(new in v1.3.1)* |
 | Per-group colours | One `textInput` per group (hex or name) for the column annotation bar |
 | Row clustering | Hierarchical clustering of molecules (always on) |
 | Column clustering | Disabled -- columns are ordered by group for comparability |
@@ -495,6 +592,13 @@ molecule across sample groups, using only the filtered samples.
 | `bubble_palette` | `selectInput` | Colour palette | `Blues` |
 | `bar_plot_height` | `numericInput` | Plot height (px) | `600` |
 
+### Keyword Filter — Pathways *(new in v1.3.1)*
+
+| Input ID | Widget type | Label | Default |
+|---|---|---|---|
+| `pathway_keyword_filter` | `textInput` | Filter by pathway name | *(blank — no filter)* |
+| `molecule_keyword_filter` | `textInput` | Filter by molecule / gene symbol | *(blank — no filter)* |
+
 ### Chord Diagram Settings
 
 | Input ID | Widget type | Label | Default |
@@ -522,7 +626,10 @@ molecule across sample groups, using only the filtered samples.
 
 | Input ID | Widget type | Label | Default |
 |---|---|---|---|
-| `selected_category` | `selectInput` | Select category | First category in enrichment file |
+| `selected_category` | `selectInput` | Select category | First category in keyword-filtered enrichment table |
+| `heatmap_cluster_rows` | `checkboxInput` | Cluster rows | `TRUE` |
+| `heatmap_cluster_cols` | `checkboxInput` | Cluster columns | `FALSE` |
+| `heatmap_scale_limit` | `sliderInput` | Colour scale limit (± Z-score) | `2` |
 | `color_group_<i>` | `textInput` | Colour -- `<group>` | Cycles through preset palette |
 | `plot_height` | `numericInput` | Heatmap height (px) | `700` |
 
@@ -609,6 +716,9 @@ server deployment documentation.
 | Chord diagram is empty | No molecules exceed the minimum frequency threshold | Lower `chord_min_freq` (default is 2) |
 | Gene Frequency plot is empty | No genes meet the minimum pathway count | Lower `freq_min_pathways` (default is 5) or switch scope to "All pathways" |
 | Gene Frequency plot shows fewer genes than expected | Top N pathways scope is too restrictive | Increase `freq_top_n_pathways` or switch to "All pathways" |
+| All plots show no data after typing a keyword | Keyword does not match any pathway name or molecule | Check spelling or clear the keyword filter boxes |
+| Keyword filter retains fewer pathways than expected | Both filter boxes are active (AND logic) | Clear one box to broaden the match |
+| Heatmap category dropdown is empty after filtering | Active keyword filter excluded all pathways | Broaden or clear the keyword filter |
 | Heatmap is blank | Selected pathway contains no molecules matching the data matrix | Check identifier matching between input files |
 | Heatmap shows fewer columns than expected | Metadata filter is active | Check the filter panel badge; broaden the selection or choose `(none)` |
 | Boxplot shows a flat line or single point | Only one sample per group after filtering | Broaden the metadata filter or check group assignments |

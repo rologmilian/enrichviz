@@ -1,6 +1,6 @@
 # app.R
 # Heatmap, Bar/Bubble Plot, Chord Diagram, Boxplot/Violin visualization
-# v.1.3.0  — adds a molecule frequency per pathway plot
+# v.1.4.0  — adds a filter for pathway name and molecule column
 # Copyright 2026 RGM
 # MIT License — see README.md for full license text
 # ─────────────────────────────────────────────────────────
@@ -80,6 +80,14 @@ ui <- fluidPage(
       margin-bottom: 6px;
     }
     #filter_panel h4 { margin-top: 4px; color: #1a4f8a; }
+    #keyword_filter_panel {
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      border-radius: 6px;
+      padding: 10px 12px 6px 12px;
+      margin-bottom: 6px;
+    }
+    #keyword_filter_panel h4 { margin-top: 4px; color: #7a5800; }
   ")),
   
   titlePanel("Heatmap, Bar Plot and Chord Diagram of Normalized Data by Pathway or Function"),
@@ -144,6 +152,22 @@ ui <- fluidPage(
       hr(),
       
       h4("Bar / Bubble Plot Settings"),
+      div(
+        id = "keyword_filter_panel",
+        h4("\U0001f50e Keyword Filter \u2014 Pathways"),
+        helpText(tags$b("Filter by pathway name:"),
+                 " comma-separated keywords, OR logic, case-insensitive."),
+        textInput("pathway_keyword_filter",
+                  label       = NULL,
+                  placeholder = "e.g. immune, signaling, metabolism"),
+        helpText(tags$b("Filter by molecule / gene symbol:"),
+                 " comma-separated gene symbols, OR logic, case-insensitive."),
+        textInput("molecule_keyword_filter",
+                  label       = NULL,
+                  placeholder = "e.g. MAPK1, TP53, EGFR"),
+        uiOutput("ui_keyword_filter_summary")
+      ),
+      hr(),
       
       radioButtons("barplot_type",
                    label    = "Plot type",
@@ -318,7 +342,62 @@ server <- function(input, output, session) {
   norm_prot  <- reactive({ req(input$file_norm_prot);  read.csv(input$file_norm_prot$datapath,  check.names = FALSE) })
   ipa_funct  <- reactive({ req(input$file_ipa_funct);  read.csv(input$file_ipa_funct$datapath,  check.names = FALSE) })
   annotation_raw <- reactive({ req(input$file_annotation); read.csv(input$file_annotation$datapath, check.names = FALSE) })
+  # Global keyword-filtered pathway table (pathway name AND/OR molecule)
+  ipa_funct_filtered <- reactive({
+    req(ipa_funct(), input$col_category, input$col_molecules)
+    df <- ipa_funct()
+    
+    # Filter 1: pathway name
+    kw_path <- input$pathway_keyword_filter
+    if (!is.null(kw_path) && nchar(trimws(kw_path)) > 0) {
+      keywords <- strsplit(trimws(kw_path), "\\s*,\\s*")[[1]]
+      keywords <- keywords[nchar(keywords) > 0]
+      if (length(keywords) > 0) {
+        pattern <- paste(keywords, collapse = "|")
+        df <- df[grepl(pattern,
+                       as.character(df[[input$col_category]]),
+                       ignore.case = TRUE), , drop = FALSE]
+      }
+    }
+    
+    # Filter 2: molecule / gene symbol
+    kw_mol <- input$molecule_keyword_filter
+    if (!is.null(kw_mol) && nchar(trimws(kw_mol)) > 0) {
+      keywords <- strsplit(trimws(kw_mol), "\\s*,\\s*")[[1]]
+      keywords <- keywords[nchar(keywords) > 0]
+      if (length(keywords) > 0) {
+        pattern <- paste(keywords, collapse = "|")
+        df <- df[grepl(pattern,
+                       as.character(df[[input$col_molecules]]),
+                       ignore.case = TRUE), , drop = FALSE]
+      }
+    }
+    df
+  })
   
+  # Summary badge for keyword filter panel
+  output$ui_keyword_filter_summary <- renderUI({
+    req(ipa_funct())
+    n_total    <- nrow(ipa_funct())
+    kw_path    <- input$pathway_keyword_filter
+    kw_mol     <- input$molecule_keyword_filter
+    path_active <- !is.null(kw_path) && nchar(trimws(kw_path)) > 0
+    mol_active  <- !is.null(kw_mol)  && nchar(trimws(kw_mol))  > 0
+    if (!path_active && !mol_active) {
+      helpText(paste0("\u2139\ufe0f  Using all ", n_total,
+                      " pathways (no keyword filter active)."))
+    } else {
+      n_kept <- nrow(ipa_funct_filtered())
+      lines  <- c()
+      if (path_active) lines <- c(lines, paste0("pathway name: ", trimws(kw_path)))
+      if (mol_active)  lines <- c(lines, paste0("molecule: ",     trimws(kw_mol)))
+      helpText(paste0(
+        "\u2705  ", n_kept, " / ", n_total,
+        " pathways retained  \u2014  ",
+        paste(lines, collapse = "  AND  ")
+      ))
+    }
+  })
   # ── 2. Metadata filter widgets ────────────────────────────────────────────
   
   # Column selector for filtering (excludes the sample-ID column)
@@ -505,8 +584,8 @@ server <- function(input, output, session) {
   
   # ── 8. Category dropdown (heatmap) ───────────────────────────────────────
   output$category_selector <- renderUI({
-    req(ipa_funct(), input$col_category)
-    choices <- unique(ipa_funct()[[input$col_category]])
+    req(ipa_funct_filtered(), input$col_category)                     
+    choices <- unique(ipa_funct_filtered()[[input$col_category]])
     selectInput("selected_category", label = paste0("Select: ", input$col_category),
                 choices = choices, selected = choices[1])
   })
@@ -570,7 +649,7 @@ server <- function(input, output, session) {
   
   barplot_data <- reactive({
     req(ipa_funct(), input$col_category, input$col_pvalue, pvalue_transform())
-    df       <- ipa_funct()
+    df       <- ipa_funct_filtered()
     raw_vals <- suppressWarnings(as.numeric(df[[input$col_pvalue]]))
     
     df_out <- df %>%
@@ -686,7 +765,7 @@ server <- function(input, output, session) {
   chord_data <- reactive({
     req(ipa_funct(), input$col_category, input$col_molecules,
         input$col_pvalue, pvalue_transform(), input$mol_separator)
-    df       <- ipa_funct()
+    df <- ipa_funct_filtered()
     raw_vals <- suppressWarnings(as.numeric(df[[input$col_pvalue]]))
     df <- df %>%
       mutate(.neg_log10 = if (pvalue_transform() == "raw") -log10(raw_vals) else raw_vals) %>%
@@ -767,7 +846,7 @@ server <- function(input, output, session) {
     req(ipa_funct(), input$col_category, input$col_molecules,
         input$mol_separator, input$freq_pathway_scope)
     
-    df <- ipa_funct()
+    df <- ipa_funct_filtered()
     
     # Option: restrict to Top N pathways by significance
     if (input$freq_pathway_scope == "top") {
