@@ -1,5 +1,5 @@
 # app.R
-# Heatmap, Bar/Bubble Plot, Chord Diagram, Boxplot/Violin visualization
+# Heatmaps, Bar/Bubble Plots, Chord Diagrams, Boxplot/Violin plots visualization
 # v.1.3.1  — adds a filter for pathway name and molecule column
 # Copyright 2026 RGM
 # MIT License — see README.md for full license text
@@ -90,13 +90,56 @@ ui <- fluidPage(
     #keyword_filter_panel h4 { margin-top: 4px; color: #7a5800; }
   ")),
   
-  titlePanel("Heatmap, Bar Plot and Chord Diagram of Normalized Data by Pathway or Function"),
-  
-  div(
-    id = "app_blurb",
-    HTML(
-      "This app integrates normalized expression/abundance data with sample metadata and pathway/function enrichment results to generate bar/bubble plots, chord diagrams, heatmaps, and box/violin plots.<br>
-       <b>Files needed (CSV):</b> (1) Normalized data (rows = genes/proteins; columns = samples), (2) metadata/annotation (sample IDs + group/condition), (3) enrichment results (pathway/function name, p-value/FDR or -log10 value, and member molecules/genes)."
+  tags$div(
+    style = paste0(
+      "position:fixed; top:0; left:0; width:100%; background:white;",
+      "z-index:200; border-bottom:1px solid #ddd;",
+      "padding:8px 20px 6px 20px; margin:0;"
+    ),
+    
+    # Row 1 – logo + title side by side
+    tags$div(
+      style = "display:flex; align-items:center; gap:14px;",
+      tags$img(
+        src    = "enrichviz.jpg",
+        height = "64px",
+        style  = "border-radius:6px; flex-shrink:0;"
+      ),
+      tags$div(
+        tags$h2(
+          "Heatmap, Bar/Bubble Plots, Chord Diagrams, Gene Frequency, and Box/Violin Plots of Pathway Anaysis Results",
+          style = "margin:0 0 2px 0; font-size:18px; font-weight:bold;"
+        ),
+        tags$p(
+          style = "margin:0; color:#444; font-size:13px; line-height:1.35;",
+          HTML(
+            "This app integrates normalized expression/abundance data with sample metadata
+             and pathway/function enrichment results to generate bar/bubble plots, chord
+             diagrams, heatmaps, gene frequency, and box/violin plots.
+             <b>Files needed (CSV):</b> (1) Normalized data (rows = genes/proteins; columns = samples),
+             (2) metadata/annotation (sample IDs + group/condition),
+             (3) enrichment results (pathway/function name, p-value/FDR or -log10 value,
+             and member molecules/genes)."
+          )
+        )
+      )
+    ),
+    
+    # Row 2 – citation
+    tags$div(
+      style = paste0(
+        "margin-top:6px; padding:5px 10px; border-radius:4px;",
+        "background:#f0f7ff; border:1px solid #b8d4f0;",
+        "font-size:12px; color:#1a4f8a; line-height:1.4;"
+      ),
+      HTML(
+        "<b>Citation:</b> Garcia-Milian R. EnrichViz: An Interactive R Shiny Application
+         for Visualization of Pathway Enrichment Results from Omics Data.
+         <em>bioRxiv</em> [Preprint]. 2026 Jun 24:2026.06.19.733398.
+         doi: <a href='https://doi.org/10.64898/2026.06.19.733398'
+                 target='_blank'>10.64898/2026.06.19.733398</a>.
+         PMID:&nbsp;42395511; PMCID:&nbsp;PMC13320841."
+      )
     )
   ),
   
