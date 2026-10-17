@@ -1,6 +1,6 @@
 # app.R
-# Heatmaps, Bar/Bubble Plots, Chord Diagrams, Boxplot/Violin plots visualization
-# v.1.3.1  — adds a filter for pathway name and molecule column
+# Heatmaps, Bar/Bubble Plots, Chord Diagrams, Boxplot/Violin, Volcano and PCA plots visualization
+# v.1.4.0  — adds optional differential analysis file: volcano plot, PCA, DE heatmap
 # Copyright 2026 RGM
 # MIT License — see README.md for full license text
 # ─────────────────────────────────────────────────────────
@@ -9,6 +9,7 @@ library(shiny)
 library(pheatmap)
 library(tidyverse)
 library(circlize)
+library(ggrepel)
 
 
 options(shiny.maxRequestSize = 500 * 1024^2)
@@ -17,6 +18,8 @@ options(shiny.maxRequestSize = 500 * 1024^2)
 # UI
 # ══════════════════════════════════════════════════════════════════════════════
 ui <- fluidPage(
+  
+  tags$head(tags$title("EnrichViz v1.4.0")),
   
   tags$style(HTML("
     html, body { height: 100%; overflow: hidden; }
@@ -88,6 +91,14 @@ ui <- fluidPage(
       margin-bottom: 6px;
     }
     #keyword_filter_panel h4 { margin-top: 4px; color: #7a5800; }
+    #de_panel {
+      background: #eef8f0;
+      border: 1px solid #b5dcbd;
+      border-radius: 6px;
+      padding: 10px 12px 6px 12px;
+      margin-bottom: 6px;
+    }
+    #de_panel h4 { margin-top: 4px; color: #1e6b33; }
   ")),
   
   tags$div(
@@ -107,7 +118,7 @@ ui <- fluidPage(
       ),
       tags$div(
         tags$h2(
-          "Heatmap, Bar/Bubble Plots, Chord Diagrams, Gene Frequency, and Box/Violin Plots of Pathway Anaysis Results",
+          "Heatmap, Bar/Bubble, Chord, Gene Frequency, Box/Violin, Volcano, and PCA Plots of Pathway and Differential Analysis Results",
           style = "margin:0 0 2px 0; font-size:18px; font-weight:bold;"
         ),
         tags$p(
@@ -119,7 +130,8 @@ ui <- fluidPage(
              <b>Files needed (CSV):</b> (1) Normalized data (rows = genes/proteins; columns = samples),
              (2) metadata/annotation (sample IDs + group/condition),
              (3) enrichment results (pathway/function name, p-value/FDR or -log10 value,
-             and member molecules/genes)."
+             and member molecules/genes), and optionally (4) differential analysis results
+             (gene ID, log2 fold change, adjusted p-value) for volcano, PCA and DE heatmap."
           )
         )
       )
@@ -150,6 +162,7 @@ ui <- fluidPage(
       fileInput("file_norm_prot",  "Normalized Data (.csv)",               accept = ".csv"),
       fileInput("file_annotation", "Metadata or Sample Annotation (.csv)", accept = ".csv"),
       fileInput("file_ipa_funct",  "Enriched Pathway or Functions (.csv)", accept = ".csv"),
+      fileInput("file_de",         "Differential Analysis Results (.csv) \u2014 optional", accept = ".csv"),
       
       hr(),
       
@@ -167,7 +180,8 @@ ui <- fluidPage(
       hr(),
       
       h4("Select Pathway / Functions \u2014 Column"),
-      helpText("Category = col 1. Molecules = last column by default."),
+      helpText("Columns and separator are detected automatically from names and contents;",
+               "change them here if needed."),
       uiOutput("ui_col_category"),
       uiOutput("ui_col_molecules"),
       
@@ -199,15 +213,16 @@ ui <- fluidPage(
         id = "keyword_filter_panel",
         h4("\U0001f50e Keyword Filter \u2014 Pathways"),
         helpText(tags$b("Filter by pathway name:"),
-                 " comma-separated keywords, OR logic, case-insensitive."),
+                 " comma-separated keywords (partial text match), OR logic, case-insensitive."),
         textInput("pathway_keyword_filter",
                   label       = NULL,
                   placeholder = "e.g. immune, signaling, metabolism"),
         helpText(tags$b("Filter by molecule / gene symbol:"),
-                 " comma-separated gene symbols, OR logic, case-insensitive."),
+                 " comma-separated symbols, OR logic, case-insensitive. Exact symbol match;",
+                 " add * as a wildcard (e.g. SYN* matches SYN1, SYN2, SYN3)."),
         textInput("molecule_keyword_filter",
                   label       = NULL,
-                  placeholder = "e.g. MAPK1, TP53, EGFR"),
+                  placeholder = "e.g. MAPK1, TP53, SYN*"),
         uiOutput("ui_keyword_filter_summary")
       ),
       hr(),
@@ -221,10 +236,45 @@ ui <- fluidPage(
       uiOutput("ui_col_pvalue"),
       uiOutput("ui_pvalue_transform_info"),
       numericInput("bar_top_n", "Show top N pathways", value = 20, min = 5, max = 200),
+      fluidRow(
+        column(7, selectInput("label_mode", "Long pathway names",
+                              choices  = c("Wrap" = "wrap", "Truncate" = "truncate", "Show in full" = "full"),
+                              selected = "wrap")),
+        column(5, numericInput("label_width", "Max characters", value = 50, min = 15, max = 200, step = 5))
+      ),
+      helpText("Wrap splits long names over up to 3 lines (at spaces, '_' or '-'); Truncate cuts them",
+               "with '\u2026'. Only the axis labels change, not the data."),
       
       conditionalPanel(
         condition = "input.barplot_type == 'bar'",
-        textInput("bar_color", "Bar fill colour (hex or name)", value = "steelblue")
+        uiOutput("ui_bar_fill_col"),
+        conditionalPanel(
+          condition = "input.bar_fill_col == ''",
+          textInput("bar_color", "Bar fill colour (hex or name)", value = "steelblue")
+        ),
+        conditionalPanel(
+          condition = "input.bar_fill_col != ''",
+          radioButtons("bar_fill_scale", "Colour scale",
+                       choices  = c("Auto" = "auto", "Gradient" = "gradient", "Diverging (centred at 0)" = "diverging"),
+                       selected = "auto", inline = TRUE),
+          helpText("Auto: diverging (white = 0) when the column has negative values (e.g. z-score, NES),",
+                   "otherwise a light-to-dark gradient. P-value columns are shown as -log10.",
+                   "Pathways with no value are grey."),
+          conditionalPanel(
+            condition = "input.bar_fill_scale != 'diverging'",
+            selectInput("bar_palette", "Gradient palette",
+                        choices = c("Blues", "Reds", "Purples", "Greens",
+                                    "OrRd", "YlOrRd", "viridis", "magma", "plasma"),
+                        selected = "Blues")
+          ),
+          conditionalPanel(
+            condition = "input.bar_fill_scale != 'gradient'",
+            fluidRow(
+              column(6, textInput("bar_neg_color", "Negative colour", value = "steelblue")),
+              column(6, textInput("bar_pos_color", "Positive colour", value = "darkorange"))
+            )
+          )
+        )
       ),
       
       conditionalPanel(
@@ -251,8 +301,10 @@ ui <- fluidPage(
       numericInput("chord_top_n",           "Top N pathways to include",            value = 10,   min = 2,   max = 50),
       numericInput("chord_min_freq",        "Minimum times a molecule must appear", value = 2,    min = 1,   max = 20),
       helpText("Increase 'minimum appearances' to reduce clutter."),
-      sliderInput("chord_inner_radius",     "Inner circle size",                    min = 0.1, max = 0.7, value = 0.4, step = 0.05),
-      helpText("Reduce to shrink central hole and give more space to labels."),
+      sliderInput("chord_inner_radius",     "Link curve depth",                     min = 0.2, max = 0.9, value = 0.4, step = 0.05),
+      helpText("How far the links bend toward the centre. Lower = links stay near the outer",
+               "ring (can look crowded); higher = links arc through the centre and are easier to follow.",
+               "This changes appearance only; it does not filter pathways or molecules."),
       numericInput("chord_label_size_path", "Pathway label font size",              value = 0.55, min = 0.3, max = 1.5, step = 0.05),
       numericInput("chord_label_size_mol",  "Molecule label font size",             value = 0.70, min = 0.3, max = 1.5, step = 0.05),
       textInput("chord_pathway_color",      "Pathway sector colour (hex or name)",  value = "tomato"),
@@ -270,6 +322,8 @@ ui <- fluidPage(
         selected = "all",
         inline   = FALSE
       ),
+      checkboxInput("freq_use_keyword_filter",
+                    "Apply the pathway keyword filter (if one is active)", value = TRUE),
       conditionalPanel(
         condition = "input.freq_pathway_scope == 'top'",
         numericInput("freq_top_n_pathways",
@@ -290,8 +344,10 @@ ui <- fluidPage(
       hr(),
       
       h4("Heatmap Settings"),
-      uiOutput("category_selector"),
-      
+      # Choices are sent from the server on demand (server-side selectize)
+      selectizeInput("selected_category", "Select pathway / function", choices = NULL,
+                     options = list(placeholder = "Upload the enrichment file, then type to search...")),
+
       # clustering toggles 
       checkboxInput("heatmap_cluster_rows", "Cluster rows",    value = TRUE),
       checkboxInput("heatmap_cluster_cols", "Cluster columns", value = FALSE),
@@ -300,6 +356,9 @@ ui <- fluidPage(
       sliderInput("heatmap_scale_limit",
                   "Heatmap colour scale limit (± Z-score)",
                   min = 1, max = 4, value = 2, step = 0.5),
+      helpText("Z-scores beyond \u00b1 this limit get the darkest colour. Lower = darker, higher-contrast",
+               "heatmap (small differences stand out); higher = lighter heatmap with more shades",
+               "between extremes. Also used by the DE Heatmap."),
       
       hr(),
       uiOutput("ui_group_colors"),
@@ -308,8 +367,8 @@ ui <- fluidPage(
       h4("Download Heatmaps"),
       downloadButton("download_single", "Download Selected Heatmap (.png)"),
       br(), br(),
-      downloadButton("download_all",    "Download ALL Heatmaps (.zip)"),
-      
+      uiOutput("ui_download_all"),
+
       hr(),
       
       h4("Boxplot / Violin Settings"),
@@ -318,10 +377,73 @@ ui <- fluidPage(
                    choices  = c("Boxplot" = "box", "Violin plot" = "violin"),
                    selected = "box",
                    inline   = TRUE),
-      uiOutput("ui_boxplot_protein"),
-      helpText("Group colours are shared with Heatmap Settings above."),
+      selectizeInput("boxplot_protein", "Search protein / gene / metabolite", choices = NULL,
+                     options = list(placeholder = "Type to search...")),
+      uiOutput("ui_boxplot_protein_msg"),
+helpText("Group colours are shared with Heatmap Settings above."),
       numericInput("boxplot_height", "Plot height (px)", value = 500, min = 300, max = 2000),
-      downloadButton("download_boxplot_sidebar", "Download Plot (.png)")
+      downloadButton("download_boxplot_sidebar", "Download Plot (.png)"),
+      
+      hr(),
+      
+      #  Differential analysis: volcano / PCA / DE heatmap 
+      div(
+        id = "de_panel",
+        h4("\U0001f30b Differential Analysis"),
+        helpText("Upload the optional differential analysis file (e.g. DESeq2, limma, MetaboAnalyst results)
+                  to enable the Volcano and DE Heatmap tabs. Works for genes, proteins or metabolites. PCA works without it."),
+        uiOutput("ui_de_cols"),
+        numericInput("de_lfc_cut",  "|log2 fold change| \u2265", value = 1,    min = 0, max = 10, step = 0.25),
+        numericInput("de_padj_cut", "Adjusted p-value <",          value = 0.05, min = 0, max = 1,  step = 0.01),
+        uiOutput("ui_de_summary"),
+        checkboxInput("de_log_transform",
+                      "Apply log2(x + 1) to normalized data (PCA & DE heatmap)", value = TRUE),
+        helpText("Untick if the normalized data are already log-transformed (common for proteomics and metabolomics).")
+      ),
+      
+      h4("Volcano Plot Settings"),
+      numericInput("volcano_top_labels", "Label top N significant features (by padj)", value = 10, min = 0, max = 200),
+      textInput("volcano_label_genes", "Also label these features (comma-separated IDs)",
+                placeholder = "e.g. NPAS4, P04637, Glutamate"),
+      textInput("volcano_up_color",   "Up-regulated colour (hex or name)",   value = "firebrick"),
+      textInput("volcano_down_color", "Down-regulated colour (hex or name)", value = "steelblue"),
+      numericInput("volcano_height", "Plot height (px)", value = 600, min = 300, max = 2000),
+      downloadButton("download_volcano", "Download Volcano Plot (.png)"),
+      
+      hr(),
+      
+      h4("PCA Settings"),
+      radioButtons("pca_gene_set",
+                   label    = "Features used for PCA",
+                   choices  = c("All features"                          = "all",
+                                "Top N most variable features"          = "top",
+                                "DE-significant features (needs DE file)" = "de"),
+                   selected = "top"),
+      conditionalPanel(
+        condition = "input.pca_gene_set == 'top'",
+        numericInput("pca_top_n", "Top N most variable features", value = 500, min = 10, max = 50000)
+      ),
+      checkboxInput("pca_scale", "Scale features to unit variance", value = FALSE),
+      fluidRow(
+        column(6, numericInput("pca_x", "X-axis PC", value = 1, min = 1, max = 20)),
+        column(6, numericInput("pca_y", "Y-axis PC", value = 2, min = 1, max = 20))
+      ),
+      checkboxInput("pca_show_labels", "Show sample labels", value = FALSE),
+      helpText("Point colours are shared with Heatmap Settings above."),
+      numericInput("pca_height", "Plot height (px)", value = 600, min = 300, max = 2000),
+      downloadButton("download_pca", "Download PCA Plot (.png)"),
+      
+      hr(),
+      
+      h4("DE Heatmap Settings"),
+      radioButtons("de_heatmap_direction",
+                   label    = "Features to show",
+                   choices  = c("Up & down" = "both", "Up only" = "up", "Down only" = "down"),
+                   selected = "both", inline = TRUE),
+      numericInput("de_heatmap_top_n", "Max features (top N by padj)", value = 50, min = 2, max = 2000),
+      helpText("Clustering toggles, colour-scale limit and group colours are shared with Heatmap Settings above."),
+      numericInput("de_heatmap_height", "Plot height (px)", value = 800, min = 300, max = 3000),
+      downloadButton("download_de_heatmap", "Download DE Heatmap (.png)")
     ),
     
     mainPanel(
@@ -361,8 +483,8 @@ ui <- fluidPage(
                  br(),
                  downloadButton("download_single_main", "\u2b07 Download Selected Heatmap (.png)"),
                  br(), br(),
-                 downloadButton("download_all_main",    "\u2b07 Download ALL Heatmaps (.zip)")
-        ),
+                 uiOutput("ui_download_all_main")
+),
         
         tabPanel("Boxplot",
                  br(),
@@ -370,6 +492,30 @@ ui <- fluidPage(
                  plotOutput("boxplot_plot", height = "500px"),
                  br(),
                  downloadButton("download_boxplot_main", "\u2b07 Download Plot (.png)")
+        ),
+        
+        tabPanel("Volcano",
+                 br(),
+                 verbatimTextOutput("volcano_status"),
+                 plotOutput("volcano_plot", height = "600px"),
+                 br(),
+                 downloadButton("download_volcano_main", "\u2b07 Download Plot (.png)")
+        ),
+        
+        tabPanel("PCA",
+                 br(),
+                 verbatimTextOutput("pca_status"),
+                 plotOutput("pca_plot", height = "600px"),
+                 br(),
+                 downloadButton("download_pca_main", "\u2b07 Download Plot (.png)")
+        ),
+        
+        tabPanel("DE Heatmap",
+                 br(),
+                 verbatimTextOutput("de_heatmap_status"),
+                 plotOutput("de_heatmap_plot", height = "800px"),
+                 br(),
+                 downloadButton("download_de_heatmap_main", "\u2b07 Download Plot (.png)")
         )
       )
     )
@@ -381,39 +527,130 @@ ui <- fluidPage(
 # ══════════════════════════════════════════════════════════════════════════════
 server <- function(input, output, session) {
   
+  # ── 0. Helpers for reading and recognising enrichment files ──────────────
+  # Enrichment exports differ by tool (IPA, clusterProfiler, g:Profiler, Enrichr,
+  # DAVID, fgsea, ...). These helpers find the right columns by name and content.
+
+  # Reads a CSV, skipping any lines above the real header (e.g. IPA's
+  # "(c) QIAGEN. All rights reserved." line) and naming unnamed columns.
+  read_enrichment_csv <- function(path) {
+    lines <- readLines(path, n = 50, warn = FALSE)
+    nf    <- suppressWarnings(count.fields(textConnection(lines), sep = ",", quote = "\"",
+                                           blank.lines.skip = FALSE, comment.char = ""))
+    nf[is.na(nf)] <- 0
+    multi <- nf[nf >= 2]
+    skip  <- if (length(multi) > 0) {
+      typical <- as.integer(names(which.max(table(multi))))   # most common field count
+      which(nf == typical)[1] - 1
+    } else 0
+    df <- read.csv(path, check.names = FALSE, skip = skip)
+    empty <- is.na(names(df)) | trimws(names(df)) == ""
+    names(df)[empty] <- paste0("Column", which(empty))
+    df
+  }
+
+  # Mean number of separator characters per value: how "list-like" a column is
+  separator_density <- function(x, seps = c(",", "/", ";", "|")) {
+    x <- head(as.character(x[!is.na(x) & x != ""]), 200)
+    if (length(x) == 0) return(setNames(rep(0, length(seps)), seps))
+    sapply(seps, function(sp) mean(lengths(regmatches(x, gregexpr(sp, x, fixed = TRUE)))))
+  }
+  is_text_col    <- function(x) is.character(x) || is.factor(x)
+  is_numeric_col <- function(x) mean(!is.na(suppressWarnings(as.numeric(as.character(x))))) > 0.5
+
+  # First column (in file order) whose lower-cased name contains a keyword;
+  # keywords are tried in priority order
+  first_keyword_match <- function(cols, keywords) {
+    for (k in keywords) {
+      hit <- cols[grepl(k, tolower(cols), fixed = TRUE)]
+      if (length(hit) > 0) return(hit[1])
+    }
+    NULL
+  }
+
+  # Pathway / term name: a text column that is not a member list
+  detect_category_col <- function(df) {
+    cols <- colnames(df)
+    cand <- cols[sapply(df, is_text_col)]
+    cand <- cand[sapply(cand, function(cl) max(separator_density(df[[cl]])) < 2)]
+    if (length(cand) == 0) return(cols[1])
+    hit <- first_keyword_match(cand, c("description", "term_name", "pathway", "term",
+                                       "gene_set", "geneset", "name"))
+    if (!is.null(hit)) return(hit)
+    cand[which.max(sapply(cand, function(cl) length(unique(df[[cl]]))))]
+  }
+
+  # Member list: a text column holding delimited IDs; NULL if the file has none
+  detect_molecules_col <- function(df) {
+    cols <- colnames(df)
+    text <- cols[-1][sapply(df[cols[-1]], is_text_col)]
+    if (length(text) == 0) return(NULL)
+    hit <- first_keyword_match(text, c("core_enrichment", "geneid", "gene_id", "molecules",
+                                       "members", "intersection", "leadingedge", "leading_edge",
+                                       "overlapping", "genes", "gene", "mol"))
+    # A keyword hit must actually look like a list (leading_edge in clusterProfiler is "tags=..%")
+    if (!is.null(hit) && max(separator_density(df[[hit]])) >= 1) return(hit)
+    dens <- sapply(text, function(cl) max(separator_density(df[[cl]])))
+    if (max(dens) >= 1) text[which.max(dens)] else NULL
+  }
+
+  # Significance: adjusted p-values preferred, then raw p-values, then -log10 columns
+  detect_pvalue_col <- function(df) {
+    cols <- colnames(df)
+    num  <- cols[sapply(df, is_numeric_col)]
+    hit  <- first_keyword_match(num, c(
+      "padj", "p.adjust", "p_adjust", "adjusted p", "adjusted_p", "adj.p", "adj_p", "adj. p",
+      "p_adj", "fdr", "benjamini", "qvalue", "q.value", "q-value", "q_value", "bonferroni",
+      "pvalue", "p.value", "p-value", "p_value", "pval", "p value", "-log", "log(p", "log10"))
+    if (!is.null(hit)) hit else if (length(num) > 0) num[1] else cols[min(2, length(cols))]
+  }
+
   # ── 1. Load uploaded data ─────────────────────────────────────────────────
   norm_prot  <- reactive({ req(input$file_norm_prot);  read.csv(input$file_norm_prot$datapath,  check.names = FALSE) })
-  ipa_funct  <- reactive({ req(input$file_ipa_funct);  read.csv(input$file_ipa_funct$datapath,  check.names = FALSE) })
+  ipa_funct  <- reactive({ req(input$file_ipa_funct);  read_enrichment_csv(input$file_ipa_funct$datapath) })
   annotation_raw <- reactive({ req(input$file_annotation); read.csv(input$file_annotation$datapath, check.names = FALSE) })
+  split_keywords <- function(txt) {
+    if (is.null(txt)) return(character(0))
+    kw <- tolower(trimws(strsplit(trimws(txt), ",", fixed = TRUE)[[1]]))
+    kw[nchar(kw) > 0]
+  }
+  keyword_filter_active <- reactive({
+    length(split_keywords(input$pathway_keyword_filter)) > 0 ||
+      length(split_keywords(input$molecule_keyword_filter)) > 0
+  })
+
   # Global keyword-filtered pathway table (pathway name AND/OR molecule)
-  ipa_funct_filtered <- reactive({
-    req(ipa_funct(), input$col_category, input$col_molecules)
+ipa_funct_filtered <- reactive({
+    req(ipa_funct(), input$col_category)
     df <- ipa_funct()
-    
-    # Filter 1: pathway name
-    kw_path <- input$pathway_keyword_filter
-    if (!is.null(kw_path) && nchar(trimws(kw_path)) > 0) {
-      keywords <- strsplit(trimws(kw_path), "\\s*,\\s*")[[1]]
-      keywords <- keywords[nchar(keywords) > 0]
-      if (length(keywords) > 0) {
-        pattern <- paste(keywords, collapse = "|")
-        df <- df[grepl(pattern,
-                       as.character(df[[input$col_category]]),
-                       ignore.case = TRUE), , drop = FALSE]
-      }
+
+# Filter 1: pathway name — literal substring match (no regex), case-insensitive
+    kw_path <- split_keywords(input$pathway_keyword_filter)
+    if (length(kw_path) > 0) {
+      names_lc <- tolower(as.character(df[[input$col_category]]))
+      keep <- Reduce(`|`, lapply(kw_path, function(k) grepl(k, names_lc, fixed = TRUE)))
+      df <- df[keep, , drop = FALSE]
     }
-    
-    # Filter 2: molecule / gene symbol
-    kw_mol <- input$molecule_keyword_filter
-    if (!is.null(kw_mol) && nchar(trimws(kw_mol)) > 0) {
-      keywords <- strsplit(trimws(kw_mol), "\\s*,\\s*")[[1]]
-      keywords <- keywords[nchar(keywords) > 0]
-      if (length(keywords) > 0) {
-        pattern <- paste(keywords, collapse = "|")
-        df <- df[grepl(pattern,
-                       as.character(df[[input$col_molecules]]),
-                       ignore.case = TRUE), , drop = FALSE]
-      }
+
+    # Filter 2: molecule / gene symbol — exact whole-symbol match, case-insensitive
+    # (so MAPK1 does not also match MAPK10 or MAPK11); "*" is a wildcard (SYN* -> SYN1, SYN3, ...)
+    kw_mol <- split_keywords(input$molecule_keyword_filter)
+    if (length(kw_mol) > 0) {
+      validate(need(has_members(), members_msg))
+      req(input$mol_separator)
+      exact    <- kw_mol[!grepl("*", kw_mol, fixed = TRUE)]
+      wild     <- kw_mol[grepl("*", kw_mol, fixed = TRUE)]
+      # Escape regex characters, then turn * into .* and anchor to the whole symbol
+      wild_pat <- if (length(wild) > 0)
+        paste0("^(", paste(gsub("\\*", ".*", gsub("([.^$|()\\[\\]{}+?\\\\])", "\\\\\\1", wild, perl = TRUE)),
+                           collapse = "|"), ")$")
+      members <- strsplit(as.character(df[[input$col_molecules]]),
+                          input$mol_separator, fixed = TRUE)
+      keep <- vapply(members, function(m) {
+        m <- tolower(trimws(m))
+        any(m %in% exact) || (!is.null(wild_pat) && any(grepl(wild_pat, m)))
+      }, logical(1))
+      df <- df[keep, , drop = FALSE]
     }
     df
   })
@@ -526,20 +763,39 @@ server <- function(input, output, session) {
   # ── 3. Column-selector widgets ────────────────────────────────────────────
   output$ui_col_category <- renderUI({
     req(ipa_funct())
-    cols <- colnames(ipa_funct())
-    selectInput("col_category", label = paste0("Category column (detected: '", cols[1], "')"),
-                choices = cols, selected = cols[1])
+    default <- detect_category_col(ipa_funct())
+    selectInput("col_category", label = paste0("Category column (detected: '", default, "')"),
+                choices = colnames(ipa_funct()), selected = default)
   })
   
   output$ui_col_molecules <- renderUI({
     req(ipa_funct())
-    cols     <- colnames(ipa_funct())
-    keywords <- c("geneid","gene_id","gene","molecules","mol","members","genes")
-    detected <- cols[sapply(tolower(cols), function(x)
-      any(sapply(keywords, function(k) grepl(k, x, fixed = TRUE))))]
-    default  <- if (length(detected) > 0) detected[1] else cols[length(cols)]
-    selectInput("col_molecules", label = paste0("Molecules column (detected: '", default, "')"),
-                choices = cols, selected = default)
+    default <- detect_molecules_col(ipa_funct())
+    tagList(
+      selectInput("col_molecules",
+                  label    = paste0("Molecules column (detected: '",
+                                    if (is.null(default)) "none" else default, "')"),
+                  choices  = c("(none \u2014 no member list)" = "", colnames(ipa_funct())),
+                  selected = if (is.null(default)) "" else default),
+      if (is.null(default))
+        helpText("\u26a0 No column with member genes / proteins / metabolites was found.",
+                 "The Bar Plot works; Chord Diagram, Gene Frequency, Heatmap and Boxplot",
+                 "need a column listing each pathway's members.")
+    )
+  })
+
+  # TRUE when a molecules (member list) column is selected
+  has_members <- reactive(!is.null(input$col_molecules) && nzchar(input$col_molecules))
+  members_msg <- paste("This view needs a column listing each pathway's member genes / proteins /",
+                       "metabolites. Select it under 'Molecules column' in the sidebar.")
+
+  # When the molecules column changes, pre-select the separator it actually uses
+  # (the user can still change it afterwards)
+  observeEvent(input$col_molecules, {
+    req(ipa_funct(), has_members())
+    dens <- separator_density(ipa_funct()[[input$col_molecules]])
+    if (max(dens) > 0)
+      updateRadioButtons(session, "mol_separator", selected = names(dens)[which.max(dens)])
   })
   
   output$ui_col_gene <- renderUI({
@@ -575,14 +831,9 @@ server <- function(input, output, session) {
   # ── 4. P-value column selector ────────────────────────────────────────────
   output$ui_col_pvalue <- renderUI({
     req(ipa_funct())
-    cols     <- colnames(ipa_funct())
-    keywords <- c("fdr","adj","p\\.val","pval","p-val","p_val",
-                  "p\\.adjust","padj","log\\(p","-log","bh","bonf")
-    detected <- cols[sapply(cols, function(x)
-      any(sapply(keywords, function(k) grepl(k, x, ignore.case = TRUE, perl = TRUE))))]
-    default  <- if (length(detected) > 0) detected[1] else cols[2]
-    selectInput("col_pvalue", label = "P-value or -log10(p-value) column (X-axis)",
-                choices = cols, selected = default)
+    default <- detect_pvalue_col(ipa_funct())
+    selectInput("col_pvalue", label = paste0("P-value or -log10(p-value) column (X-axis) (detected: '", default, "')"),
+                choices = colnames(ipa_funct()), selected = default)
   })
   
   # ── 5. Transformation info ────────────────────────────────────────────────
@@ -626,20 +877,31 @@ server <- function(input, output, session) {
   })
   
   # ── 8. Category dropdown (heatmap) ───────────────────────────────────────
-  output$category_selector <- renderUI({
-    req(ipa_funct_filtered(), input$col_category)                     
-    choices <- unique(ipa_funct_filtered()[[input$col_category]])
-    selectInput("selected_category", label = paste0("Select: ", input$col_category),
-                choices = choices, selected = choices[1])
+  # Server-side selectize: only matches for the typed text are sent to the browser
+  observe({
+    choices <- tryCatch({
+      req(ipa_funct_filtered(), input$col_category)
+      as.character(unique(ipa_funct_filtered()[[input$col_category]]))
+    }, error = function(e) {
+      if (inherits(e, "shiny.silent.error")) stop(e)
+      character(0)
+    })
+    current <- isolate(input$selected_category)
+    selected <- if (!is.null(current) && current %in% choices) current else head(choices, 1)
+    updateSelectizeInput(session, "selected_category",
+                         label    = paste0("Select: ", input$col_category, " (", length(choices), ")"),
+                         choices  = choices, selected = selected, server = TRUE)
   })
   
   # ── 9. Gene list from selected category ──────────────────────────────────
   genes_interest <- reactive({
+    validate(need(has_members(), members_msg))
     req(ipa_funct(), input$selected_category, input$col_category,
         input$col_molecules, input$mol_separator)
     ipa_funct() %>%
       filter(.data[[input$col_category]] == input$selected_category) %>%
       pull(.data[[input$col_molecules]]) %>%
+      as.character() %>%
       strsplit(input$mol_separator, fixed = TRUE) %>%
       unlist() %>% trimws() %>% unique()
   })
@@ -668,10 +930,12 @@ server <- function(input, output, session) {
   output$ui_bubble_size_col <- renderUI({
     req(ipa_funct())
     cols     <- colnames(ipa_funct())
+    # Bubble size must be numeric (skips text like Enrichr "Overlap" = "4/700")
+    num_cols <- cols[sapply(ipa_funct(), is_numeric_col)]
     keywords <- c("count","size","gene","overlap","number","n_gene","ngene","ratio")
-    detected <- cols[sapply(tolower(cols), function(x)
+    detected <- num_cols[sapply(tolower(num_cols), function(x)
       any(sapply(keywords, function(k) grepl(k, x, fixed = TRUE))))]
-    default  <- if (length(detected) > 0) detected[1] else cols[1]
+    default  <- if (length(detected) > 0) detected[1] else if (length(num_cols) > 0) num_cols[1] else cols[1]
     selectInput("bubble_size_col",
                 label   = paste0("Bubble SIZE column (detected: '", default, "')"),
                 choices = cols, selected = default)
@@ -679,12 +943,8 @@ server <- function(input, output, session) {
   
   output$ui_bubble_color_col <- renderUI({
     req(ipa_funct())
-    cols     <- colnames(ipa_funct())
-    keywords <- c("fdr","adj","p\\.val","pval","p-val","p_val",
-                  "p\\.adjust","padj","log\\(p","-log","bh","bonf")
-    detected <- cols[sapply(cols, function(x)
-      any(sapply(keywords, function(k) grepl(k, x, ignore.case = TRUE, perl = TRUE))))]
-    default  <- if (length(detected) > 0) detected[1] else cols[2]
+    cols    <- colnames(ipa_funct())
+    default <- detect_pvalue_col(ipa_funct())
     selectInput("bubble_color_col",
                 label   = paste0("Bubble COLOUR intensity column (detected: '", default, "')"),
                 choices = cols, selected = default)
@@ -722,9 +982,18 @@ server <- function(input, output, session) {
       "P-value column   : ", input$col_pvalue,                                                  "\n",
       "Values detected  : ", if (pvalue_transform() == "raw")
         "raw p-values (0-1) -> -log10 applied" else "already -log10 transformed -> used as-is", "\n",
-      "Total pathways   : ", nrow(ipa_funct()),                                                  "\n",
-      "Showing top      : ", min(input$bar_top_n, nrow(ipa_funct()))
+      "Total pathways   : ", nrow(ipa_funct_filtered()),
+      if (nrow(ipa_funct_filtered()) < nrow(ipa_funct()))
+        paste0(" (keyword-filtered from ", nrow(ipa_funct()), ")") else "",                  "\n",
+      "Showing top      : ", nrow(barplot_data())
     )
+    if (input$barplot_type == "bar") {
+      fill <- bar_fill_info(barplot_data())
+      if (!is.null(fill))
+        base <- paste0(base, "\nBar colour col   : ", fill$label, " (", fill$scale, ")",
+                       if (fill$col == input$col_pvalue) " -- same as the x-axis" else "",
+                       if (any(is.na(fill$vals))) paste0("; ", sum(is.na(fill$vals)), " pathway(s) without a value shown in grey") else "")
+    }
     if (input$barplot_type == "bubble" &&
         !is.null(input$bubble_size_col) && !is.null(input$bubble_color_col)) {
       base <- paste0(base,
@@ -734,6 +1003,71 @@ server <- function(input, output, session) {
     base
   })
   
+  # Optional numeric column used to colour the bars ("thermal" bar plot)
+  output$ui_bar_fill_col <- renderUI({
+    req(ipa_funct())
+    num_cols <- colnames(ipa_funct())[sapply(ipa_funct(), is_numeric_col)]
+    selectInput("bar_fill_col", "Colour bars by",
+                choices  = c("None (single colour)" = "", num_cols),
+                selected = "")
+  })
+
+  # TRUE for columns whose name says they hold p-values / q-values (not ratios etc.)
+  is_pvalue_name <- function(nm) {
+    keys <- c("padj", "p.adjust", "p_adjust", "adjusted p", "adjusted_p", "adj.p", "adj_p",
+              "p_adj", "fdr", "benjamini", "qvalue", "q.value", "q-value", "q_value", "bonferroni",
+              "pvalue", "p.value", "p-value", "p_value", "pval", "p value")
+    nm <- tolower(nm)
+    any(sapply(keys, function(k) grepl(k, nm, fixed = TRUE))) && !grepl("log", nm, fixed = TRUE)
+  }
+
+  # Values, legend label and scale type for the bar colour column
+  bar_fill_info <- function(df) {
+    col <- input$bar_fill_col
+    if (is.null(col) || col == "" || !col %in% colnames(df)) return(NULL)
+    vals  <- suppressWarnings(as.numeric(df[[col]]))
+    label <- col
+    if (is_pvalue_name(col) && all(vals >= 0 & vals <= 1, na.rm = TRUE)) {
+      vals  <- -log10(pmax(vals, .Machine$double.xmin))
+      label <- paste0("-log10(", col, ")")
+    }
+    # Signed metrics (z-score, NES, ...) are diverging even if the bars shown share one sign,
+    # so white always means 0 and the strongest values are always the darkest
+    signed <- any(suppressWarnings(as.numeric(ipa_funct()[[col]])) < 0, na.rm = TRUE)
+    scale  <- switch(if (is.null(input$bar_fill_scale)) "auto" else input$bar_fill_scale,
+                     gradient = "gradient", diverging = "diverging",
+                     if (signed) "diverging" else "gradient")
+    list(col = col, vals = vals, label = label, scale = scale)
+  }
+
+  # Shortens long pathway names for axis labels. Wrap breaks at spaces, "_" or "-"
+  # (GSEA names such as GOBP_..._..._ have no spaces); at most `max_lines` lines.
+  shorten_labels <- function(x, width = 50, mode = "wrap", max_lines = 3) {
+    x <- as.character(x)
+    if (is.null(mode) || mode == "full" || is.null(width) || is.na(width)) return(x)
+    width <- max(10, width)
+    ell   <- "\u2026"
+    trunc1 <- function(s) if (nchar(s) > width) paste0(substr(s, 1, width - 1), ell) else s
+    if (mode == "truncate") return(vapply(x, trunc1, character(1), USE.NAMES = FALSE))
+    vapply(x, function(s) {
+      if (nchar(s) <= width) return(s)
+      tokens <- regmatches(s, gregexpr("[^ _-]+[ _-]*", s))[[1]]
+      lines <- character(0); cur <- ""
+      for (tk in tokens) {
+        if (nchar(cur) > 0 && nchar(cur) + nchar(trimws(tk, "right")) > width) {
+          lines <- c(lines, cur); cur <- tk
+        } else cur <- paste0(cur, tk)
+      }
+      lines <- trimws(c(lines, cur), "right")
+      lines <- vapply(lines, trunc1, character(1), USE.NAMES = FALSE)   # a single very long word
+      if (length(lines) > max_lines)
+        lines <- c(lines[seq_len(max_lines - 1)], trunc1(paste0(lines[max_lines], ell)))
+      paste(lines, collapse = "\n")
+    }, character(1), USE.NAMES = FALSE)
+  }
+  pathway_label_scale <- function()
+    scale_y_discrete(labels = function(x) shorten_labels(x, input$label_width, input$label_mode))
+
   make_barplot <- function() {
     req(barplot_data(), input$barplot_type)
     df      <- barplot_data()
@@ -741,16 +1075,41 @@ server <- function(input, output, session) {
       paste0("-log10(", input$col_pvalue, ")") else input$col_pvalue
     
     if (input$barplot_type == "bar") {
-      bar_color <- if (is.null(input$bar_color) || input$bar_color == "") "steelblue" else input$bar_color
-      ggplot(df, aes(x = .neg_log10, y = .category)) +
-        geom_col(fill = bar_color, width = 0.7) +
+      bar_theme <- list(
         labs(title = paste0("Top ", nrow(df), " Enriched Pathways / Functions"),
-             x = x_label, y = NULL) +
-        theme_bw(base_size = 12) +
-        theme(axis.text.y         = element_text(size = 10),
+             x = x_label, y = NULL),
+        pathway_label_scale(),
+        theme_bw(base_size = 12),
+        theme(axis.text.y         = element_text(size = 10, lineheight = 0.8),
               axis.text.x         = element_text(size = 10),
               plot.title          = element_text(face = "bold", size = 13),
               panel.grid.major.y  = element_blank())
+      )
+      fill <- bar_fill_info(df)
+      if (is.null(fill)) {
+        bar_color <- if (is.null(input$bar_color) || input$bar_color == "") "steelblue" else input$bar_color
+        return(ggplot(df, aes(x = .neg_log10, y = .category)) +
+                 geom_col(fill = bar_color, width = 0.7) + bar_theme)
+      }
+      
+      # Colour bars by a numeric column
+      df$.bar_fill <- fill$vals
+      p <- ggplot(df, aes(x = .neg_log10, y = .category, fill = .bar_fill)) +
+        geom_col(width = 0.7, colour = "grey40", linewidth = 0.2) + bar_theme
+      if (fill$scale == "diverging") {
+        neg <- if (is.null(input$bar_neg_color) || input$bar_neg_color == "") "steelblue"  else input$bar_neg_color
+        pos <- if (is.null(input$bar_pos_color) || input$bar_pos_color == "") "darkorange" else input$bar_pos_color
+        lim <- max(abs(fill$vals), na.rm = TRUE)
+        if (!is.finite(lim) || lim == 0) lim <- 1
+        p + scale_fill_gradient2(low = neg, mid = "white", high = pos, midpoint = 0,
+                                 limits = c(-lim, lim), na.value = "grey80", name = fill$label)
+      } else {
+        palette <- if (is.null(input$bar_palette) || input$bar_palette == "") "Blues" else input$bar_palette
+        if (palette %in% c("viridis", "magma", "plasma"))
+          p + scale_fill_viridis_c(option = palette, na.value = "grey80", name = fill$label)
+        else
+          p + scale_fill_distiller(palette = palette, direction = 1, na.value = "grey80", name = fill$label)
+      }
       
     } else {
       req(input$bubble_size_col, input$bubble_color_col)
@@ -770,10 +1129,11 @@ server <- function(input, output, session) {
                           size = .bub_size, fill = .bub_color)) +
         geom_point(shape = 21, alpha = 0.85, colour = "grey30") +
         scale_size(name  = input$bubble_size_col, range = input$bubble_size_range) +
+        pathway_label_scale() +
         labs(title = paste0("Top ", nrow(df), " Enriched Pathways / Functions"),
              x = x_label, y = NULL, fill = color_label) +
         theme_bw(base_size = 12) +
-        theme(axis.text.y        = element_text(size = 10),
+        theme(axis.text.y        = element_text(size = 10, lineheight = 0.8),
               axis.text.x        = element_text(size = 10),
               plot.title         = element_text(face = "bold", size = 13),
               panel.grid.major.y = element_blank(),
@@ -791,7 +1151,7 @@ server <- function(input, output, session) {
                                height = function() input$bar_plot_height)
   
   dl_barplot_handler <- function(file) {
-    png(file, width = 4200, height = 2400, res = 300, type = "cairo-png")
+    png(file, width = 4200, height = 2400, res = 300)
     print(make_barplot())
     dev.off()
   }
@@ -806,6 +1166,7 @@ server <- function(input, output, session) {
   # CHORD DIAGRAM
   # ══════════════════════════════════════════════════════════════════════════
   chord_data <- reactive({
+    validate(need(has_members(), members_msg))
     req(ipa_funct(), input$col_category, input$col_molecules,
         input$col_pvalue, pvalue_transform(), input$mol_separator)
     df <- ipa_funct_filtered()
@@ -838,7 +1199,7 @@ server <- function(input, output, session) {
       "Molecules shown  : ", n_distinct(cd$molecules), "\n",
       "Total connections: ", nrow(cd),                 "\n",
       "Min appearances  : ", input$chord_min_freq,     "\n",
-      "Inner radius     : ", input$chord_inner_radius
+      "Link curve depth : ", input$chord_inner_radius
     )
   })
   
@@ -886,11 +1247,13 @@ server <- function(input, output, session) {
   # GENE FREQUENCY BAR PLOT (All pathways OR Top N pathways)
   # ══════════════════════════════════════════════════════════════════════════
   gene_freq_data <- reactive({
+    validate(need(has_members(), members_msg))
     req(ipa_funct(), input$col_category, input$col_molecules,
         input$mol_separator, input$freq_pathway_scope)
     
-    df <- ipa_funct_filtered()
-    
+    # Keyword-filtered pathways, or the full table if the user unticks the option
+    df <- if (isTRUE(input$freq_use_keyword_filter)) ipa_funct_filtered() else ipa_funct()
+
     # Option: restrict to Top N pathways by significance
     if (input$freq_pathway_scope == "top") {
       req(input$col_pvalue, pvalue_transform(), input$freq_top_n_pathways)
@@ -924,14 +1287,28 @@ server <- function(input, output, session) {
     gf <- gene_freq_data()
     gf_filt <- gf %>% filter(pathway_count >= input$freq_min_pathways)
     
+    use_kw   <- isTRUE(input$freq_use_keyword_filter)
+    base_df  <- if (use_kw) ipa_funct_filtered() else ipa_funct()
+    kw_line  <- if (!keyword_filter_active()) "Keyword filter  : none active\n"
+                else if (use_kw) paste0("Keyword filter  : applied (", nrow(ipa_funct_filtered()),
+                                        " of ", nrow(ipa_funct()), " pathways)\n")
+                else paste0("Keyword filter  : ignored (all ", nrow(ipa_funct()), " pathways used)\n")
     scope_line <- if (input$freq_pathway_scope == "all") {
-      paste0("Pathways used   : ALL (", n_distinct(ipa_funct()[[input$col_category]]), ")")
+      paste0("Pathways used   : ALL (", n_distinct(base_df[[input$col_category]]), ")")
     } else {
       paste0("Pathways used   : TOP ", input$freq_top_n_pathways,
              " (ranked by ", input$col_pvalue, ")")
     }
     
+    filter_line <- if (!is.null(input$filter_col) && input$filter_col != "__none__")
+      paste0("Metadata filter : ", input$filter_col, " = ",
+             paste(input$filter_vals, collapse = ", "),
+             " (not applied: frequency uses the pathway table only)\n")
+    else ""
+
     paste0(
+      filter_line,
+      kw_line,
       scope_line, "\n",
       "Genes total     : ", nrow(gf), "\n",
       "Genes with >= ", input$freq_min_pathways, " pathways: ", nrow(gf_filt), "\n",
@@ -978,7 +1355,7 @@ server <- function(input, output, session) {
   # ══════════════════════════════════════════════════════════════════════════
   # HEATMAP  — now uses filtered annotation + filtered sample columns
   # ══════════════════════════════════════════════════════════════════════════
-  make_heatmap <- function(gene_filter, title_text) {
+  make_heatmap <- function(gene_filter, title_text, log2_transform = FALSE) {
     req(input$col_gene, input$col_sample_id, input$col_group)
     data <- norm_prot()
     ann  <- annotation()                       # ← filtered
@@ -1009,6 +1386,11 @@ server <- function(input, output, session) {
     
     mat           <- as.matrix(data[, sample_cols, drop = FALSE])
     rownames(mat) <- as.character(data[[input$col_gene]])
+    if (log2_transform) {
+      validate(need(all(mat >= 0, na.rm = TRUE),
+                    "Data contain negative values (already log-transformed?). Untick 'Apply log2(x + 1)'."))
+      mat <- log2(mat + 1)
+    }
     
     row_vars <- apply(mat, 1, var, na.rm = TRUE)
     mat      <- mat[!is.na(row_vars) & row_vars > 0, , drop = FALSE]
@@ -1047,7 +1429,7 @@ server <- function(input, output, session) {
       annotation_colors = ann_colors,
       cluster_rows      = isTRUE(input$heatmap_cluster_rows),   # ← NEW
       cluster_cols      = isTRUE(input$heatmap_cluster_cols),   # ← NEW
-      show_rownames     = nrow(mat) <= 100, show_colnames = TRUE,
+      show_rownames     = nrow(mat) <= 100, show_colnames = ncol(mat) <= 60,
       scale             = "none",
       color             = colorRampPalette(c("darkblue", "white", "darkred"))(100),
       breaks            = breaks_sym,
@@ -1073,14 +1455,46 @@ server <- function(input, output, session) {
   output$download_single      <- downloadHandler(filename = dl_single_filename, content = dl_single_handler)
   output$download_single_main <- downloadHandler(filename = dl_single_filename, content = dl_single_handler)
   
+  # Batch export is limited to keyword-filtered pathways, capped to keep downloads fast
+  max_batch_heatmaps <- 100
+  batch_categories <- reactive({
+    req(ipa_funct_filtered(), input$col_category)
+    unique(ipa_funct_filtered()[[input$col_category]])
+  })
+
+  batch_download_ui <- function(id, prefix = "") {
+    if (is.null(input$file_ipa_funct)) return(NULL)
+    if (!keyword_filter_active())
+      return(helpText("\u2139\ufe0f  Batch download of heatmaps is available after applying a",
+                      "keyword filter (Keyword Filter \u2014 Pathways panel)."))
+    n <- length(batch_categories())
+    if (n == 0)
+      return(helpText("\u26a0 No pathways match the keyword filter."))
+    if (n > max_batch_heatmaps)
+      return(helpText(paste0("\u26a0 ", n, " pathways match the keyword filter. Narrow it to ",
+                             max_batch_heatmaps, " or fewer to enable batch download.")))
+    downloadButton(id, paste0(prefix, "Download Filtered Heatmaps (", n, ") (.zip)"))
+  }
+  output$ui_download_all      <- renderUI(batch_download_ui("download_all"))
+  output$ui_download_all_main <- renderUI(batch_download_ui("download_all_main", "\u2b07 "))
+
   download_all_handler <- function(file) {
+    validate(need(has_members(), members_msg))
     req(input$col_category, input$col_molecules, input$col_gene, input$mol_separator)
-    tmp_dir <- tempdir()
+    cats <- batch_categories()
+    validate(need(keyword_filter_active(), "Apply a keyword filter before batch-downloading heatmaps."),
+             need(length(cats) <= max_batch_heatmaps,
+                  paste0("Too many pathways (", length(cats), "); narrow the keyword filter.")))
+# Fresh sub-directory so files from earlier downloads are never mixed in
+    tmp_dir <- tempfile("heatmaps_")
+    dir.create(tmp_dir)
+    on.exit(unlink(tmp_dir, recursive = TRUE), add = TRUE)
     saved   <- c()
-    for (cat_val in unique(ipa_funct()[[input$col_category]])) {
-      genes <- ipa_funct() %>%
+    for (cat_val in cats) {
+genes <- ipa_funct() %>%
         filter(.data[[input$col_category]] == cat_val) %>%
         pull(.data[[input$col_molecules]]) %>%
+        as.character() %>%
         strsplit(input$mol_separator, fixed = TRUE) %>%
         unlist() %>% trimws() %>% unique()
       if (length(genes) == 0) next
@@ -1088,39 +1502,63 @@ server <- function(input, output, session) {
       if (nrow(data) <= 1) next
       clean    <- gsub("[^A-Za-z0-9]", "_", cat_val)
       png_path <- file.path(tmp_dir, paste0("Heatmap_", clean, ".png"))
-      png(png_path, width = 8, height = 10, units = "in", res = 300)
-      make_heatmap(gene_filter = genes, title_text = paste0(cat_val, "\n(Z-score, by Group)"))
-      dev.off()
-      saved <- c(saved, png_path)
+      # A category that cannot be drawn (e.g. all genes zero-variance) is skipped
+      # instead of aborting the whole archive; the device is always closed.
+      ok <- tryCatch({
+        png(png_path, width = 8, height = 10, units = "in", res = 300)
+        make_heatmap(gene_filter = genes, title_text = paste0(cat_val, "\n(Z-score, by Group)"))
+        TRUE
+      }, error = function(e) FALSE,
+      finally = dev.off())
+      if (ok) saved <- c(saved, png_path) else unlink(png_path)
     }
+    validate(need(length(saved) > 0,
+                  "No heatmaps could be generated for any category."))
     zip(zipfile = file, files = saved, flags = "-j")
   }
-  output$download_all      <- downloadHandler(filename = function() "All_Heatmaps.zip", content = download_all_handler)
-  output$download_all_main <- downloadHandler(filename = function() "All_Heatmaps.zip", content = download_all_handler)
+  dl_all_filename <- function() paste0("Filtered_Heatmaps_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".zip")
+  output$download_all      <- downloadHandler(filename = dl_all_filename, content = download_all_handler)
+  output$download_all_main <- downloadHandler(filename = dl_all_filename, content = download_all_handler)
   
   # ══════════════════════════════════════════════════════════════════════════
   # BOXPLOT / VIOLIN PLOT  — uses filtered annotation + filtered samples
   # ══════════════════════════════════════════════════════════════════════════
   all_molecules <- reactive({
+    validate(need(has_members(), members_msg))
     req(ipa_funct(), input$col_molecules, input$mol_separator)
     ipa_funct()[[input$col_molecules]] %>%
+      as.character() %>%
       strsplit(input$mol_separator, fixed = TRUE) %>%
       unlist() %>% trimws() %>% unique() %>% sort()
   })
   
-  output$ui_boxplot_protein <- renderUI({
+  boxplot_molecules <- reactive({
     req(all_molecules(), norm_prot(), input$col_gene)
-    gene_col     <- as.character(norm_prot()[[input$col_gene]])
-    mols_present <- all_molecules()[all_molecules() %in% gene_col]
-    validate(need(length(mols_present) > 0,
-                  "No molecules from the pathway file found in the normalized data."))
-    selectizeInput(
-      inputId  = "boxplot_protein",
-      label    = paste0("Search protein / gene (", length(mols_present), " matched)"),
-      choices  = mols_present,
-      selected = mols_present[1],
-      options  = list(placeholder = "Type to search...", maxOptions = 2000)
-    )
+    gene_col <- as.character(norm_prot()[[input$col_gene]])
+    all_molecules()[all_molecules() %in% gene_col]
+  })
+
+  # Server-side selectize: only matches for the typed text are sent to the browser
+  observe({
+    mols <- tryCatch(boxplot_molecules(), error = function(e) {
+      if (inherits(e, "shiny.silent.error")) stop(e)   # keep normal req() behaviour
+      character(0)                                     # bad column choice -> empty list, no crash
+    })
+    current <- isolate(input$boxplot_protein)
+    selected <- if (!is.null(current) && current %in% mols) current else head(mols, 1)
+    updateSelectizeInput(session, "boxplot_protein",
+                         label    = paste0("Search protein / gene / metabolite (", length(mols), " matched)"),
+                         choices  = mols, selected = selected, server = TRUE)
+  })
+
+  output$ui_boxplot_protein_msg <- renderUI({
+    mols <- tryCatch(boxplot_molecules(), error = function(e) {
+      if (inherits(e, "shiny.silent.error")) stop(e)
+      character(0)
+    })
+    if (length(mols) == 0)
+      helpText("\u26a0 No molecules from the pathway file found in the normalized data.",
+               "Check the Molecules column, the separator, and the Gene/Protein ID column.")
   })
   
   boxplot_data <- reactive({
@@ -1233,6 +1671,264 @@ server <- function(input, output, session) {
   
   output$download_boxplot_sidebar <- downloadHandler(filename = dl_boxplot_filename, content = dl_boxplot_handler)
   output$download_boxplot_main    <- downloadHandler(filename = dl_boxplot_filename, content = dl_boxplot_handler)
+  
+  # ══════════════════════════════════════════════════════════════════════════
+  # DIFFERENTIAL ANALYSIS — volcano, PCA, DE heatmap
+  # ══════════════════════════════════════════════════════════════════════════
+  de_raw <- reactive({ req(input$file_de); read.csv(input$file_de$datapath, check.names = FALSE) })
+  
+  # First column whose lower-cased name contains a keyword; keywords are tried in priority order
+  detect_col <- function(cols, keywords, fallback) {
+    for (k in keywords) {
+      hit <- cols[grepl(k, tolower(cols), fixed = TRUE)]
+      if (length(hit) > 0) return(hit[1])
+    }
+    fallback
+  }
+  
+  output$ui_de_cols <- renderUI({
+    req(de_raw())
+    cols <- colnames(de_raw())
+    # Prefer the same ID column name as the normalized data, so identifiers match
+    gene_default <- if (!is.null(input$col_gene) && input$col_gene %in% cols) input$col_gene else
+      detect_col(cols, c("symbol", "gene_name", "genename", "gene", "protein", "uniprot", "accession",
+                         "metabolite", "compound", "hmdb", "kegg", "feature", "name", "id"), cols[1])
+    lfc_default  <- detect_col(cols, c("log2foldchange", "log2fc", "logfc", "log2_fc", "lfc", "fold"), cols[2])
+    padj_default <- detect_col(cols, c("padj", "p.adjust", "adj.p", "adj_p", "fdr", "qvalue", "q.value", "pvalue", "p.value"), cols[3])
+    tagList(
+      selectInput("de_col_gene", paste0("Feature ID column \u2014 gene / protein / metabolite (detected: '", gene_default, "')"),
+                  choices = cols, selected = gene_default),
+      selectInput("de_col_lfc",  paste0("log2 fold-change column (detected: '", lfc_default, "')"),
+                  choices = cols, selected = lfc_default),
+      selectInput("de_col_padj", paste0("Adjusted p-value column (detected: '", padj_default, "')"),
+                  choices = cols, selected = padj_default)
+    )
+  })
+  
+  # DE table with standardised columns and Up / Down / NS status
+  de_data <- reactive({
+    req(de_raw(), input$de_col_gene, input$de_col_lfc, input$de_col_padj,
+        input$de_lfc_cut, input$de_padj_cut)
+    de <- de_raw()
+    df <- data.frame(
+      gene = trimws(as.character(de[[input$de_col_gene]])),
+      lfc  = suppressWarnings(as.numeric(de[[input$de_col_lfc]])),
+      padj = suppressWarnings(as.numeric(de[[input$de_col_padj]])),
+      stringsAsFactors = FALSE
+    )
+    # NA padj (e.g. DESeq2 independent filtering) cannot be tested -> dropped
+    df <- df[!is.na(df$lfc) & !is.na(df$padj), , drop = FALSE]
+    validate(need(nrow(df) > 0, "No rows with numeric fold change and adjusted p-value. Check the DE column selection."))
+    # padj of exactly 0 would give Inf on the -log10 scale
+    df$neg_log10_padj <- -log10(pmax(df$padj, .Machine$double.xmin))
+    df$status <- ifelse(df$padj < input$de_padj_cut & df$lfc >=  input$de_lfc_cut, "Up",
+                 ifelse(df$padj < input$de_padj_cut & df$lfc <= -input$de_lfc_cut, "Down", "NS"))
+    df
+  })
+  
+  output$ui_de_summary <- renderUI({
+    req(de_data())
+    df <- de_data()
+    helpText(paste0("✅  ", sum(df$status == "Up"), " up  /  ", sum(df$status == "Down"),
+                    " down  of ", nrow(df), " tested features"))
+  })
+  
+  # Significant features (genes / proteins / metabolites), ordered by padj
+  de_sig_genes <- function(direction = "both") {
+    df  <- de_data()
+    keep <- switch(direction, up = "Up", down = "Down", c("Up", "Down"))
+    df  <- df[df$status %in% keep & !is.na(df$gene) & df$gene != "", , drop = FALSE]
+    unique(df$gene[order(df$padj)])
+  }
+  
+  # ── Volcano ──────────────────────────────────────────────────────────────
+  output$volcano_status <- renderText({
+    req(de_data())
+    df <- de_data()
+    paste0(
+      "Feature ID column: ", input$de_col_gene, "\n",
+      "Fold-change col  : ", input$de_col_lfc,  "\n",
+      "Adj. p-value col : ", input$de_col_padj, "\n",
+      "Cutoffs          : |log2FC| >= ", input$de_lfc_cut, " and padj < ", input$de_padj_cut, "\n",
+      "Features tested  : ", nrow(df), " (rows with missing padj removed: ", nrow(de_raw()) - nrow(df), ")\n",
+      "Up / Down        : ", sum(df$status == "Up"), " / ", sum(df$status == "Down")
+    )
+  })
+  
+  make_volcano <- function() {
+    req(de_data())
+    df <- de_data()
+    up_col   <- if (is.null(input$volcano_up_color)   || input$volcano_up_color   == "") "firebrick" else input$volcano_up_color
+    down_col <- if (is.null(input$volcano_down_color) || input$volcano_down_color == "") "steelblue" else input$volcano_down_color
+    
+    # Labels: top N significant by padj + any user-typed genes (case-insensitive)
+    sig      <- df[df$status != "NS", , drop = FALSE]
+    top_lab  <- head(sig$gene[order(sig$padj)], max(0, input$volcano_top_labels))
+    typed_txt <- if (is.null(input$volcano_label_genes)) "" else input$volcano_label_genes
+    typed    <- tolower(trimws(strsplit(typed_txt, ",", fixed = TRUE)[[1]]))
+    typed    <- typed[nchar(typed) > 0]
+    lab_df   <- df[df$gene %in% top_lab | tolower(df$gene) %in% typed, , drop = FALSE]
+    lab_df   <- lab_df[!is.na(lab_df$gene) & lab_df$gene != "" & !duplicated(lab_df$gene), , drop = FALSE]
+    
+    n_up <- sum(df$status == "Up"); n_down <- sum(df$status == "Down")
+    df$status <- factor(df$status, levels = c("Down", "NS", "Up"))
+    
+    ggplot(df, aes(x = lfc, y = neg_log10_padj, colour = status)) +
+      geom_point(size = 1.4, alpha = 0.7) +
+      geom_vline(xintercept = c(-input$de_lfc_cut, input$de_lfc_cut), linetype = "dashed", colour = "grey40") +
+      geom_hline(yintercept = -log10(input$de_padj_cut), linetype = "dashed", colour = "grey40") +
+      geom_text_repel(data = lab_df, aes(label = gene), colour = "black", size = 3.2,
+                      max.overlaps = Inf, min.segment.length = 0, box.padding = 0.4) +
+      scale_colour_manual(values = c(Down = down_col, NS = "grey75", Up = up_col),
+                          labels = c(Down = paste0("Down (", n_down, ")"), NS = "Not significant",
+                                     Up = paste0("Up (", n_up, ")")),
+                          drop = FALSE, name = NULL) +
+      labs(title = "Volcano Plot",
+           x = paste0("log2 fold change (", input$de_col_lfc, ")"),
+           y = paste0("-log10(", input$de_col_padj, ")")) +
+      theme_bw(base_size = 13) +
+      theme(plot.title = element_text(face = "bold", size = 14), legend.position = "top")
+  }
+  
+  output$volcano_plot <- renderPlot({ make_volcano() }, height = function() input$volcano_height)
+  dl_volcano_handler <- function(file) ggsave(file, plot = make_volcano(), width = 9, height = 7, dpi = 300, units = "in")
+  dl_volcano_filename <- function() paste0("Volcano_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".png")
+  output$download_volcano      <- downloadHandler(filename = dl_volcano_filename, content = dl_volcano_handler)
+  output$download_volcano_main <- downloadHandler(filename = dl_volcano_filename, content = dl_volcano_handler)
+  
+  # ── PCA ──────────────────────────────────────────────────────────────────
+  pca_result <- reactive({
+    req(norm_prot(), annotation(), input$col_gene, input$col_sample_id, input$col_group,
+        sample_cols_resolved(), input$pca_gene_set)
+    data        <- norm_prot()
+    sample_cols <- sample_cols_resolved()
+    validate(need(length(sample_cols) >= 3, "PCA needs at least 3 samples after metadata filtering."))
+    
+    mat <- as.matrix(data[, sample_cols, drop = FALSE])
+    rownames(mat) <- as.character(data[[input$col_gene]])
+    mat <- mat[complete.cases(mat), , drop = FALSE]
+    if (isTRUE(input$de_log_transform)) {
+      validate(need(all(mat >= 0),
+                    "Data contain negative values (already log-transformed?). Untick 'Apply log2(x + 1)'."))
+      mat <- log2(mat + 1)
+    }
+    vars <- apply(mat, 1, var)
+    mat  <- mat[vars > 0, , drop = FALSE]
+    vars <- vars[vars > 0]
+    
+    if (input$pca_gene_set == "top") {
+      req(input$pca_top_n)
+      mat <- mat[order(vars, decreasing = TRUE)[seq_len(min(input$pca_top_n, nrow(mat)))], , drop = FALSE]
+    } else if (input$pca_gene_set == "de") {
+      validate(need(!is.null(input$file_de), "Upload the differential analysis file to use DE-significant features."))
+      mat <- mat[rownames(mat) %in% de_sig_genes("both"), , drop = FALSE]
+    }
+    validate(need(nrow(mat) >= 2, "Fewer than 2 features available for PCA with the current settings."))
+    
+    pca <- prcomp(t(mat), center = TRUE, scale. = isTRUE(input$pca_scale))
+    ann <- annotation()
+    grp <- as.character(ann[[input$col_group]])[match(rownames(pca$x), as.character(ann[[input$col_sample_id]]))]
+    list(pca = pca, n_genes = nrow(mat), group = grp,
+         var_pct = 100 * pca$sdev^2 / sum(pca$sdev^2))
+  })
+  
+  output$pca_status <- renderText({
+    req(pca_result())
+    r <- pca_result()
+    filter_line <- if (!is.null(input$filter_col) && input$filter_col != "__none__")
+      paste0("Metadata filter  : ", input$filter_col, " = ", paste(input$filter_vals, collapse = ", "), "\n")
+    else ""
+    set_label <- switch(input$pca_gene_set,
+                        all = "all features", top = paste0("top ", input$pca_top_n, " most variable"),
+                        de  = "DE-significant features")
+    paste0(
+      filter_line,
+      "Samples          : ", nrow(r$pca$x), "\n",
+      "Features used    : ", r$n_genes, " (", set_label, ")\n",
+      "Transformation   : ", if (isTRUE(input$de_log_transform)) "log2(x + 1)" else "none",
+      if (isTRUE(input$pca_scale)) ", scaled to unit variance" else ", centred only", "\n",
+      "Variance (PC1-5) : ", paste0(round(head(r$var_pct, 5), 1), "%", collapse = ", ")
+    )
+  })
+  
+  make_pca <- function() {
+    req(pca_result(), boxplot_group_colors(), input$pca_x, input$pca_y)
+    r <- pca_result()
+    n_pc <- ncol(r$pca$x)
+    validate(need(input$pca_x <= n_pc && input$pca_y <= n_pc && input$pca_x != input$pca_y,
+                  paste0("Choose two different PCs between 1 and ", n_pc, ".")))
+    df <- data.frame(x = r$pca$x[, input$pca_x], y = r$pca$x[, input$pca_y],
+                     sample = rownames(r$pca$x), group = r$group, stringsAsFactors = FALSE)
+    grp_colors <- boxplot_group_colors()
+    filter_subtitle <- if (!is.null(input$filter_col) && input$filter_col != "__none__")
+      paste0(input$filter_col, " = ", paste(input$filter_vals, collapse = ", ")) else NULL
+    
+    p <- ggplot(df, aes(x = x, y = y, colour = group)) +
+      geom_point(size = 3.5, alpha = 0.9) +
+      scale_colour_manual(values = grp_colors, name = input$col_group) +
+      labs(title    = "PCA of Normalized Data",
+           subtitle = filter_subtitle,
+           x = paste0("PC", input$pca_x, " (", round(r$var_pct[input$pca_x], 1), "%)"),
+           y = paste0("PC", input$pca_y, " (", round(r$var_pct[input$pca_y], 1), "%)")) +
+      theme_bw(base_size = 13) +
+      theme(plot.title = element_text(face = "bold", size = 14))
+    if (isTRUE(input$pca_show_labels))
+      p <- p + geom_text_repel(aes(label = sample), size = 3, show.legend = FALSE, max.overlaps = Inf)
+    p
+  }
+  
+  output$pca_plot <- renderPlot({ make_pca() }, height = function() input$pca_height)
+  dl_pca_handler  <- function(file) ggsave(file, plot = make_pca(), width = 9, height = 7, dpi = 300, units = "in")
+  dl_pca_filename <- function() paste0("PCA_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".png")
+  output$download_pca      <- downloadHandler(filename = dl_pca_filename, content = dl_pca_handler)
+  output$download_pca_main <- downloadHandler(filename = dl_pca_filename, content = dl_pca_handler)
+  
+  # ── DE heatmap (reuses make_heatmap) ─────────────────────────────────────
+  de_heatmap_genes <- reactive({
+    req(de_data(), norm_prot(), input$col_gene, input$de_heatmap_direction, input$de_heatmap_top_n)
+    genes <- de_sig_genes(input$de_heatmap_direction)
+    genes <- genes[genes %in% as.character(norm_prot()[[input$col_gene]])]
+    head(genes, input$de_heatmap_top_n)
+  })
+  
+  output$de_heatmap_status <- renderText({
+    req(de_data(), de_heatmap_genes(), sample_cols_resolved())
+    n_sig <- length(de_sig_genes(input$de_heatmap_direction))
+    filter_line <- if (!is.null(input$filter_col) && input$filter_col != "__none__")
+      paste0("Metadata filter  : ", input$filter_col, " = ", paste(input$filter_vals, collapse = ", "), "\n")
+    else ""
+    paste0(
+      filter_line,
+      "Cutoffs          : |log2FC| >= ", input$de_lfc_cut, " and padj < ", input$de_padj_cut, "\n",
+      "Direction        : ", input$de_heatmap_direction, "\n",
+      "Significant      : ", n_sig, "\n",
+      "Shown (in data)  : ", length(de_heatmap_genes()), " (max ", input$de_heatmap_top_n, ", by padj)\n",
+      "Samples used     : ", length(sample_cols_resolved()), "\n",
+      "Transformation   : ", if (isTRUE(input$de_log_transform)) "log2(x + 1), then row Z-score" else "row Z-score"
+    )
+  })
+  
+  de_heatmap_title <- function()
+    paste0("DE features: |log2FC| ≥ ", input$de_lfc_cut, ", padj < ", input$de_padj_cut,
+           "\n(Z-score, by Group)")
+  
+  draw_de_heatmap <- function() {
+    genes <- de_heatmap_genes()
+    validate(need(length(genes) >= 2,
+                  "Fewer than 2 significant features found in the normalized data. Relax the cutoffs or check that the DE feature ID column matches the normalized data ID column."))
+    make_heatmap(gene_filter = genes, title_text = de_heatmap_title(),
+                 log2_transform = isTRUE(input$de_log_transform))
+  }
+  
+  output$de_heatmap_plot <- renderPlot({ draw_de_heatmap() }, height = function() input$de_heatmap_height)
+  dl_de_heatmap_handler <- function(file) {
+    png(file, width = 8, height = 10, units = "in", res = 300)
+    on.exit(dev.off(), add = TRUE)
+    draw_de_heatmap()
+  }
+  dl_de_heatmap_filename <- function() paste0("DE_Heatmap_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".png")
+  output$download_de_heatmap      <- downloadHandler(filename = dl_de_heatmap_filename, content = dl_de_heatmap_handler)
+  output$download_de_heatmap_main <- downloadHandler(filename = dl_de_heatmap_filename, content = dl_de_heatmap_handler)
 }
 
 # ══════════════════════════════════════════════════════════════════════════════

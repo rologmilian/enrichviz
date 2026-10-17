@@ -1,4 +1,4 @@
-# EnrichViz Shiny App — v1.3.1
+# EnrichViz Shiny App — v1.4.0
 
 Interactive visualization of enriched pathways or biological functions from
 normalized proteomics, transcriptomics, or metabolomics data.
@@ -11,35 +11,46 @@ Licensed under the MIT License — see [License](#license) section below.
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [What's New in v1.3.1](#whats-new-in-v131)
-3. [What's New in v1.3.0](#whats-new-in-v130)
-4. [What's New in v1.2.0](#whats-new-in-v120)
-5. [Requirements](#requirements)
-6. [Installation](#installation)
-7. [Input Files](#input-files)
-8. [App Structure](#app-structure)
-9. [Tabs and Features](#tabs-and-features)
+2. [What's New in v1.4.0](#whats-new-in-v140)
+3. [What's New in v1.3.1](#whats-new-in-v131)
+4. [What's New in v1.3.0](#whats-new-in-v130)
+5. [What's New in v1.2.0](#whats-new-in-v120)
+6. [Requirements](#requirements)
+7. [Installation](#installation)
+8. [Input Files](#input-files)
+9. [App Structure](#app-structure)
+10. [Tabs and Features](#tabs-and-features)
    - [Tab 1 -- Bar Plot](#tab-1--bar-plot)
    - [Tab 2 -- Chord Diagram](#tab-2--chord-diagram)
    - [Tab 3 -- Gene Frequency](#tab-3--gene-frequency)
    - [Tab 4 -- Heatmap](#tab-4--heatmap)
    - [Tab 5 -- Boxplot](#tab-5--boxplot)
-10. [Sidebar Controls Reference](#sidebar-controls-reference)
-11. [Download Outputs](#download-outputs)
-12. [Deployment](#deployment)
-13. [Tips and Troubleshooting](#tips-and-troubleshooting)
-14. [License](#license)
+   - [Tab 6 -- Volcano](#tab-6--volcano)
+   - [Tab 7 -- PCA](#tab-7--pca)
+   - [Tab 8 -- DE Heatmap](#tab-8--de-heatmap)
+11. [Sidebar Controls Reference](#sidebar-controls-reference)
+12. [Download Outputs](#download-outputs)
+13. [Deployment](#deployment)
+14. [Tips and Troubleshooting](#tips-and-troubleshooting)
+15. [License](#license)
 
 ---
 
 ## Overview
 
-EnrichViz (v1.3.1) is an R Shiny application for interactive exploration and
+EnrichViz (v1.4.0) is an R Shiny application for interactive exploration and
 visualization of pathway or functional enrichment results derived from
-normalized proteomics or transcriptomics experiments.
+normalized proteomics, transcriptomics, or metabolomics experiments.
 
-The app accepts three CSV input files (a normalized data matrix, a sample
-metadata/annotation table, and an enrichment results table) and produces five
+**Citation:** Garcia-Milian R. [EnrichViz: An Interactive R Shiny Application
+for Visualization of Pathway Enrichment Results from Omics
+Data](https://pubmed.ncbi.nlm.nih.gov/42395511/). bioRxiv [Preprint]. 2026
+Jun 24:2026.06.19.733398. doi: 10.64898/2026.06.19.733398. PMID: 42395511;
+PMCID: PMC13320841.
+
+The app accepts three required CSV input files (a normalized data matrix, a
+sample metadata/annotation table, and an enrichment results table) plus an
+optional fourth file with differential analysis results. It produces eight
 coordinated views:
 
 - A **Bar Plot** (optionally rendered as a bubble chart) ranking pathways or
@@ -52,13 +63,103 @@ coordinated views:
 - A **Heatmap** of molecule-level abundances grouped by pathway or function.
 - A **Boxplot** (optionally rendered as a violin plot) displaying the
   distribution of abundance values for a selected molecule across groups.
+- A **Volcano Plot** of the differential analysis results, coloured by
+  fold-change and adjusted p-value cutoffs *(requires the optional DE file)*.
+- A **PCA** plot of samples, coloured by group.
+- A **DE Heatmap** of the features passing the fold-change and adjusted
+  p-value cutoffs *(requires the optional DE file)*.
+
+Throughout the app, "feature" means whatever the rows of your data are:
+genes, transcripts, proteins, or metabolites.
 
 All plots can be downloaded as publication-ready PNG files directly
 from the sidebar or from within each tab.
 
-The browser window title is set to:
-*"Heatmap, Bar Plot and Chord Diagram of Normalized Data by Pathway or
-Function"*
+The page header reads *"Heatmap, Bar/Bubble, Chord, Gene Frequency,
+Box/Violin, Volcano, and PCA Plots of Pathway and Differential Analysis
+Results"*, and the browser tab title is *"EnrichViz v1.4.0"*.
+
+---
+
+## What's New in v1.4.0
+
+### Differential analysis: Volcano, PCA and DE Heatmap
+
+A fourth, **optional** upload accepts a differential analysis results table
+(DESeq2, edgeR, limma, MSstats, MetaboAnalyst, ...) and enables three new tabs.
+The app works with genes, proteins or metabolites ("features").
+
+- **Differential Analysis panel** (green, in the sidebar): auto-detected
+  feature ID, log2 fold-change and adjusted p-value columns; cutoffs
+  (default |log2FC| >= 1, padj < 0.05); live Up / Down count; and a
+  **log2(x + 1)** toggle for raw-scale data (untick for already-logged
+  proteomics or metabolomics data).
+- **Volcano** tab: Up / Down / not-significant colouring, cutoff lines,
+  top-N and user-typed labels (non-overlapping via `ggrepel`).
+- **PCA** tab: all features, top N most variable, or DE-significant
+  features; optional scaling; choice of PCs; group colours; optional sample
+  labels. Works without the DE file.
+- **DE Heatmap** tab: Z-scored heatmap of significant features (up, down or
+  both; top N by padj), sharing the pathway heatmap's clustering, scale and
+  colour settings.
+
+See [Tab 6](#tab-6--volcano), [Tab 7](#tab-7--pca) and
+[Tab 8](#tab-8--de-heatmap) for details.
+
+### Batch heatmap download limited to filtered pathways
+
+**Download ALL Heatmaps** is replaced by **Download Filtered Heatmaps (N)
+(.zip)**. It is only available while a keyword filter is active, exports
+only the matching pathways, and is capped at 100 to avoid very long
+downloads and server time-outs. Pathways that cannot be drawn are skipped
+instead of aborting the archive. See [Batch heatmap
+download](#batch-heatmap-download).
+
+### Faster large dropdowns
+
+The heatmap pathway selector and boxplot molecule selector use server-side
+search, so files with thousands of pathways or features no longer slow the
+browser. Both keep the current selection when the list changes.
+
+### Changes and fixes
+
+- **Keyword filter matching:** pathway-name keywords now match as plain text
+  (characters like `(` or `+` no longer cause errors); molecule keywords
+  must match a whole member symbol (`MAPK1` no longer matches `MAPK10`).
+- **Status lines** for the Bar Plot and Gene Frequency tabs now report
+  keyword-filtered pathway counts. The Gene Frequency status notes that the
+  metadata filter does not apply to it.
+- **Enrichment file detection** now recognises exports from IPA,
+  clusterProfiler, g:Profiler, Enrichr, DAVID and fgsea: the pathway-name,
+  member and significance columns (adjusted p-values preferred) and the
+  member separator are chosen automatically, and lines above the header
+  (e.g. IPA's copyright line) are skipped. Files without a member column
+  (e.g. MetaboAnalyst) load for the Bar Plot, and the other views explain
+  what is missing. A wrong column choice shows a message instead of
+  disconnecting the app. See [Supported enrichment
+  tools](#supported-enrichment-tools).
+- **Heatmaps** hide sample names when there are more than 60 samples.
+- **Long pathway names** on the bar and bubble plots are wrapped (or
+  truncated) so a single very long name no longer squeezes the plot.
+- **Bar Plot colouring:** bars can be coloured by any numeric column
+  (z-score, NES, set size, FDR, ...), with a diverging scale centred at 0 for
+  signed values and a gradient otherwise.
+- **Molecule keyword filter** accepts `*` wildcards (`SYN*` matches `SYN1`,
+  `SYN3`, ...).
+- **Gene Frequency** can use either the keyword-filtered pathways or all
+  pathways (new **Apply the pathway keyword filter** option); the status
+  line reports which.
+- **Chord Diagram:** "Inner circle size" is renamed **Link curve depth**, with
+  help text explaining that it only changes how links curve (it is not a
+  filter). Range is now 0.2-0.9.
+- **Heatmap colour scale limit** has help text explaining that lower values
+  darken the heatmap and higher values lighten it.
+- The sidebar help under **Select Pathway / Functions -- Column** now
+  describes the automatic column detection.
+- The bar-plot download no longer uses `type = "cairo-png"`, so it works on
+  any server.
+- **Requirements:** the app loads `tidyverse` (not the individual packages
+  previously listed) and now also needs `ggrepel`.
 
 ---
 
@@ -92,6 +193,15 @@ simultaneously.
 
 - Keywords within each box are separated by commas and matched with **OR
   logic** (case-insensitive).
+- **Pathway name** keywords are matched as plain text anywhere in the name
+  (e.g. `signal` matches "Signaling by WNT"). Special characters such as
+  `(`, `+` or `.` are treated literally, not as regular expressions.
+- **Molecule** keywords must match a **whole member symbol** — `MAPK1` matches
+  pathways containing `MAPK1` but not ones that only contain `MAPK10` or
+  `MAPK11`. Members are split using the selected molecule separator.
+- Add `*` as a **wildcard** to match a symbol root: `SYN*` matches `SYN1`,
+  `SYN2`, `SYN3` -- and also any other symbol starting with "SYN", such as
+  `SYNPO` or `SYNGAP1`. `*` can appear anywhere (e.g. `HLA-D*`, `*KIN`).
 - If **both** boxes contain text, they combine with **AND logic**: a pathway
   must satisfy both conditions to be retained.
 - Leaving a box blank imposes no constraint from that box.
@@ -104,6 +214,7 @@ simultaneously.
 |---|---|---|
 | `MAPK` | *(blank)* | Only pathways whose **name** contains "MAPK" |
 | *(blank)* | `MAPK1, MAPK3` | All pathways that **contain** MAPK1 or MAPK3 as members |
+| *(blank)* | `SYN*` | All pathways containing any member whose symbol starts with "SYN" |
 | `signaling` | `TP53` | Pathways **named** with "signaling" **AND** containing TP53 as a member |
 | *(both blank)* | *(both blank)* | All pathways — no filtering |
 
@@ -128,22 +239,30 @@ all downstream consumers use:
 | Chord Diagram | Only filtered pathways contribute edges and molecules |
 | Gene Frequency Plot | Frequency counts are computed from filtered pathways only |
 | Heatmap category selector | Dropdown lists only the filtered pathway names |
+| Batch heatmap download | Enabled only while a filter is active; exports only the filtered pathways (max 100) |
 
 #### What is not affected
 
 - Column-selector widgets (`col_pvalue`, `col_molecules`, `col_category`, etc.)
   always read from the unfiltered `ipa_funct()` so that column detection is
   never disrupted by an active filter.
-- The **Download ALL Heatmaps (.zip)** handler iterates over `ipa_funct()` to
-  preserve the full set of per-category heatmaps in the archive.
+
+The keyword filter also controls the batch heatmap download: **Download
+Filtered Heatmaps (.zip)** is only available while a keyword filter is
+active, and exports only the matching pathways (see [Download
+Outputs](#download-outputs)).
 
 #### Implementation notes
 
 - The reactive `ipa_funct_filtered()` is defined immediately after the three
   file-loader reactives and before all plot reactives.
-- Each keyword box splits its input on `\\s*,\\s*`, builds a single regex
-  pattern with `|` as the OR operator, and applies `grepl(..., ignore.case =
-  TRUE)` against the respective column.
+- Each keyword box splits its input on commas and lower-cases the keywords.
+- Pathway-name keywords are tested with `grepl(..., fixed = TRUE)` on the
+  lower-cased name (literal substring match, no regex).
+- Molecule keywords are compared with `%in%` against the lower-cased,
+  trimmed member symbols after splitting on `mol_separator` (exact match).
+  Keywords containing `*` are converted to an anchored regular expression
+  (`*` -> `.*`, all other characters matched literally).
 - The two filter steps are applied sequentially (pathway name first, then
   molecule), so the AND combination requires no additional logic.
 - The summary badge reactive `ui_keyword_filter_summary` mirrors the pattern
@@ -255,7 +374,7 @@ The filter propagates automatically to **all plots**:
 |---|---|
 | Bar Plot | Status line reports the active filter |
 | Chord Diagram | Status line reports the active filter |
-| Gene Frequency | Status line reports the pathway scope (filter does not restrict pathways but is displayed consistently) |
+| Gene Frequency | Not affected — frequencies depend only on the pathway table. The status line notes the active filter and that it is not applied |
 | Heatmap | Only filtered samples appear as columns; filter is shown in the plot title |
 | Boxplot / Violin | Only filtered samples contribute data points; filter is shown in the plot subtitle |
 
@@ -293,25 +412,19 @@ To then repeat the comparison for females, change the checked value to
 |---|---|
 | R | >= 4.2.0 |
 | shiny | >= 1.7.4 |
-| ggplot2 | >= 3.4.0 |
-| dplyr | >= 1.1.0 |
-| tidyr | >= 1.3.0 |
-| readr | >= 2.1.0 |
-| stringr | >= 1.5.0 |
+| tidyverse | >= 2.0.0 (provides ggplot2, dplyr, tidyr, readr, stringr) |
 | circlize | >= 0.4.15 |
 | pheatmap | >= 1.0.12 |
-| viridis | >= 0.6.3 |
-| RColorBrewer | >= 1.1-3 |
-| scales | >= 1.2.1 |
+| ggrepel | >= 0.9.0 (non-overlapping labels on volcano and PCA plots) |
+
+The app loads these five packages with `library()`. Colour palettes
+(viridis, ColorBrewer) are provided through ggplot2's own dependencies, so
+no extra palette packages need to be installed.
 
 Install all R dependencies at once:
 
 ```r
-install.packages(c(
-  "shiny", "ggplot2", "dplyr", "tidyr", "readr",
-  "stringr", "circlize", "pheatmap",
-  "viridis", "RColorBrewer", "scales"
-))
+install.packages(c("shiny", "tidyverse", "circlize", "pheatmap", "ggrepel"))
 ```
 
 > **Note:** v1.2.0 replaced `ComplexHeatmap` (Bioconductor) with `pheatmap`
@@ -322,7 +435,7 @@ install.packages(c(
 ## Installation
 
 1. Clone or download this repository.
-2. Place `app.R` (v1.3.1) in a dedicated project folder.
+2. Place `app.R` (v1.4.0) in a dedicated project folder.
 3. Install all dependencies listed above.
 4. Launch the app from R or RStudio:
 
@@ -336,8 +449,9 @@ Or open `app.R` in RStudio and click **Run App**.
 
 ## Input Files
 
-EnrichViz expects **three CSV files** (`.csv`). All files must have a header
-row. Maximum upload size is 500 MB per file.
+EnrichViz expects **three CSV files** (`.csv`), plus an **optional fourth**
+file for differential analysis. All files must have a header row. Maximum
+upload size is 500 MB per file.
 
 ### 1. Normalized Data File
 
@@ -384,11 +498,16 @@ Sample4    healthy    male    55
 
 A results table from a pathway or functional enrichment analysis where:
 
-- **Column 1** contains pathway or function names.
-- One column contains a **p-value or -log10(p-value)**; the app auto-detects
-  the scale.
+- One column contains **pathway or function names**.
+- One column contains a **p-value, adjusted p-value, or -log10(p-value)**;
+  the app detects whether values are raw (0-1) or already -log10.
 - One column contains **member molecules / genes** as a delimited string
-  (comma, slash, semicolon, or pipe -- selectable in the sidebar).
+  (comma, slash, semicolon, or pipe). This column is optional: without it
+  only the Bar Plot works.
+
+The app detects all three columns and the separator automatically; every
+choice can be changed in the sidebar. Any lines above the header row (such
+as IPA's copyright line) are skipped.
 
 Example layout:
 
@@ -401,6 +520,70 @@ Oxidative_Phospho  0.003    ProtB,ProtD
 > **Note:** Molecule identifiers must match exactly (case-sensitive) the
 > identifiers in the normalized data file.
 
+#### Supported enrichment tools
+
+Exports from these tools are recognised without changing any setting
+(the file must be saved as `.csv`):
+
+| Tool | Pathway name | Members (separator) | Significance column used |
+|---|---|---|---|
+| IPA (Canonical Pathways export) | `Ingenuity Canonical Pathways` | `Molecules` (`,`) | `-log(p-value)` |
+| clusterProfiler, over-representation | `Description` | `geneID` (`/`) | `p.adjust` |
+| clusterProfiler, GSEA | `Description` | `core_enrichment` (`/`) | `p.adjust` |
+| g:Profiler | `term_name` | `intersections` (`,`) | `adjusted_p_value` |
+| Enrichr | `Term` | `Genes` (`;`) | `Adjusted P-value` |
+| DAVID (Functional Annotation Chart) | `Term` | `Genes` (`,`) | `FDR` |
+| fgsea | `pathway` | `leadingEdge` (`,`) | `padj` |
+| MetaboAnalyst (enrichment) | first column | *none in export* -- Bar Plot only | `FDR` |
+
+How detection works:
+
+- **Pathway name:** a text column named like `Description`, `term_name`,
+  `Pathway`, `Term`, `gene_set` or `Name`; otherwise the text column with
+  the most distinct values. Columns that hold member lists are never
+  chosen.
+- **Members:** a text column named like `core_enrichment`, `geneID`,
+  `Molecules`, `members`, `intersections`, `leadingEdge` or `Genes` that
+  actually contains delimited lists; otherwise the text column with the most
+  separators. If none exists, the selector shows **(none)** and the views that
+  need members explain why they are empty.
+- **Significance:** adjusted p-values (`padj`, `p.adjust`, `Adjusted
+  P-value`, `FDR`, `Benjamini`, `qvalue`, ...) are preferred over raw
+  p-values, then -log10 columns. Only numeric columns are considered.
+- **Separator:** the character (`,` `/` `;` `|`) found most often in the
+  members column.
+
+Other tools generally work too if their export has a pathway-name column, a
+p-value column and a delimited member column. Tab-delimited exports
+(e.g. Enrichr `.txt`, IPA `.xls`) must first be saved as CSV.
+
+### 4. Differential Analysis Results File (optional)
+
+A results table from a differential expression / abundance analysis (e.g.
+DESeq2, edgeR, limma, MSstats, MetaboAnalyst), one row per feature, where:
+
+- One column contains **feature IDs** (gene symbols, protein accessions,
+  metabolite names, ...). These must match the IDs in the selected
+  Gene/Protein ID column of the normalized data file.
+- One column contains the **log2 fold change**.
+- One column contains the **adjusted p-value** (padj / FDR / q-value).
+- Other columns are allowed and ignored.
+
+Example layout (DESeq2):
+
+```
+symbol   baseMean  log2FoldChange  lfcSE  stat    pvalue    padj
+NPAS4    63.78     -3.97           0.34   -11.74  7.6e-32   1.7e-27
+FOSB     229.78    -2.46           0.24   -10.41  2.4e-25   2.6e-21
+```
+
+> The three columns are auto-detected from common names (`symbol`,
+> `protein`, `metabolite`, `log2FoldChange`, `logFC`, `padj`, `FDR`,
+> `adj.P.Val`, `qvalue`, ...) and can be overridden in the sidebar. If the
+> normalized data's ID column name also exists in the DE file, it is selected
+> by default. Rows with a missing fold change or adjusted p-value (e.g. DESeq2
+> independent filtering) are dropped.
+
 ---
 
 ## App Structure
@@ -411,7 +594,7 @@ width = 9). Both panels scroll independently.
 
 A fixed blurb bar below the title summarises the three required input files.
 
-The main panel contains a `tabsetPanel` with **five tabs**:
+The main panel contains a `tabsetPanel` with **eight tabs**:
 
 | Tab index | Tab label |
 |---|---|
@@ -420,10 +603,14 @@ The main panel contains a `tabsetPanel` with **five tabs**:
 | 3 | Gene Frequency |
 | 4 | Heatmap |
 | 5 | Boxplot |
+| 6 | Volcano |
+| 7 | PCA |
+| 8 | DE Heatmap |
 
 The sidebar is divided into clearly labelled sections:
 
-- **Upload Data Files** -- three `fileInput` widgets.
+- **Upload Data Files** -- three required `fileInput` widgets plus one
+  optional widget for differential analysis results.
 - **Filter Samples by Metadata** *(introduced in v1.2.0)* -- column picker,
   value checkboxes, Select all / Clear all buttons, live sample count badge.
 - **Select Pathway / Functions -- Column** -- category and molecule column
@@ -432,19 +619,39 @@ The sidebar is divided into clearly labelled sections:
   column selector.
 - **Sample Annotation -- Column** -- sample ID and group column selectors.
 - **Bar / Bubble Plot Settings** -- plot type, p-value column, top N,
-  colour / palette controls.
+  colour / palette controls, and optional colouring of bars by a numeric
+  column.
 - **Keyword Filter — Pathways** *(new in v1.3.1)* -- two independent text
   inputs for filtering by pathway name and by molecule/gene symbol; live
   count badge; affects all downstream plots.
-- **Chord Diagram Settings** -- top N, minimum frequency, inner radius,
+- **Chord Diagram Settings** -- top N, minimum frequency, link curve depth,
   label sizes, sector colours.
 - **Gene Frequency Plot Settings** *(new in v1.3.0)* -- pathway scope toggle,
   optional top N pathways, minimum pathway count, top N genes, plot height,
   download button.
 - **Heatmap Settings** -- category selector, per-group colour inputs, height,
+  single-heatmap download, and the batch download of keyword-filtered
+  heatmaps,
   download buttons.
 - **Boxplot / Violin Settings** -- molecule selector, plot type, height,
   download button.
+- **Differential Analysis** (green panel) -- DE column selectors,
+  fold-change and adjusted p-value cutoffs, up/down count badge, and the
+  log2(x + 1) toggle used by PCA and the DE heatmap.
+- **Volcano Plot Settings** -- labels, colours, height, download button.
+- **PCA Settings** -- feature set, scaling, PCs to plot, sample labels,
+  height, download button.
+- **DE Heatmap Settings** -- direction, maximum features, height, download
+  button.
+
+### Large dropdown lists
+
+The heatmap pathway selector and the boxplot molecule selector use
+**server-side search** (`updateSelectizeInput(..., server = TRUE)`): the full
+list stays on the server, and only the entries matching what you type are sent
+to the browser. This keeps the app responsive with enrichment files of
+thousands of gene sets and data sets of tens of thousands of features. Click a
+selector and start typing to find an entry.
 
 ---
 
@@ -460,7 +667,13 @@ Displays pathways or functions ranked by a chosen p-value metric.
 | P-value column | Select the significance column from the enrichment file (`selectInput`); raw p-values (0-1) are auto-transformed with -log10 |
 | Auto-transform indicator | `helpText` confirms whether -log10 will be applied |
 | Top N selector | Cap the number of displayed pathways (`numericInput`, default 20) |
-| Bar colour | Hex or named colour for bar fill (`textInput`, default `steelblue`) |
+| Long pathway names | **Wrap** (default) splits names longer than *Max characters* (default 50) over up to 3 lines, breaking at spaces, `_` or `-` so GSEA-style names (`GOBP_..._...`) wrap too; **Truncate** cuts them to one line ending in `…`; **Show in full** leaves them unchanged. Applies to bar and bubble plots and their downloads. Only the axis labels change -- pathways whose shortened names coincide are still drawn as separate bars |
+| Colour bars by | Optional numeric column used to colour the bars, like the bubble plot (`selectInput`, default **None**). Useful for z-score (IPA), NES (GSEA), set size / count, or an adjusted p-value when the x-axis shows something else |
+| Colour scale | **Auto** (default): diverging blue-white-orange centred at 0 (white = 0) when the column contains negative values, e.g. z-score or NES; otherwise a light-to-dark gradient. **Gradient** or **Diverging** can be forced (`radioButtons`) |
+| Gradient palette / Negative & positive colours | Palette for gradients (`selectInput`, default `Blues`); end colours for diverging scales (`textInput`, defaults `steelblue` / `darkorange`) |
+| P-value colour columns | Columns named like p-values / FDR / q-values with values in 0-1 are shown as -log10, so darker = more significant |
+| Missing values | Pathways without a value in the colour column are drawn in grey |
+| Bar colour | Single fill colour used when **Colour bars by** = None (`textInput`, default `steelblue`) |
 | Bubble size column | Column mapped to bubble area (`selectInput`) |
 | Bubble colour column | Column mapped to bubble fill intensity (`selectInput`) |
 | Bubble size range | Min/max point size (`sliderInput`, default 3-15) |
@@ -478,14 +691,14 @@ the top N pathways or functions.
 |---|---|
 | Top N pathways | Number of highest-ranked pathways to include (`numericInput`, default 10) |
 | Minimum frequency | Show only molecules appearing in at least N pathways (`numericInput`, default 2) |
-| Inner circle size | Radius of the central hole (`sliderInput`, default 0.4) |
+| Link curve depth | How far the links bend toward the centre (`sliderInput`, 0.2-0.9, default 0.4). Lower values keep links near the outer ring, which can look crowded; higher values arc links through the centre so they are easier to follow. Appearance only -- it does not filter pathways or molecules. (Previously labelled "Inner circle size") |
 | Pathway label size | Font size for pathway sector labels (`numericInput`, default 0.55) |
 | Molecule label size | Font size for molecule labels (`numericInput`, default 0.70) |
 | Pathway sector colour | Hex or named colour for pathway arcs (`textInput`, default `tomato`) |
 | Molecule sector colour | Hex or named colour for molecule arcs (`textInput`, default `steelblue`) |
 | Plot height | Adjustable rendering height in pixels (`numericInput`, default 750) |
 | Keyword filter | Pathway name and/or molecule filter applied upstream via `ipa_funct_filtered()` *(new in v1.3.1)* |
-| Status line | Reports active metadata filter, pathway count, molecule count, total connections, minimum frequency, and inner radius |
+| Status line | Reports active metadata filter, pathway count, molecule count, total connections, minimum frequency, and link curve depth |
 
 ### Tab 3 -- Gene Frequency
 
@@ -495,6 +708,7 @@ rapid identification of hub molecules shared by many biological processes.
 | Feature | Details |
 |---|---|
 | Pathway scope | Toggle between using **all pathways** or only the **top N most significant** (`radioButtons`) |
+| Apply keyword filter | When ticked (default), frequencies use only the pathways retained by the Keyword Filter; untick to use all pathways even while a keyword filter is active (`checkboxInput`) |
 | Top N pathways | Number of top-ranked pathways to use when scope = Top N (`numericInput`, default 20; only visible when scope = Top N) |
 | Minimum pathway count | Only display genes appearing in at least this many pathways (`numericInput`, default 5) |
 | Top N genes | Maximum number of genes shown after filtering (`numericInput`, default 50) |
@@ -511,14 +725,17 @@ User can select clustering or not for the columns/samples.
 
 | Feature | Details |
 |---|---|
-| Category selector | Choose one pathway or function to visualise (`selectInput`); list is restricted to keyword-filtered pathways *(new in v1.3.1)* |
+| Category selector | Choose one pathway or function to visualise (`selectizeInput` with type-ahead search); list is restricted to keyword-filtered pathways *(new in v1.3.1)*. The label shows how many pathways are available, and the current choice is kept when the filter changes if it is still in the list |
 | Per-group colours | One `textInput` per group (hex or name) for the column annotation bar |
-| Row clustering | Hierarchical clustering of molecules (always on) |
-| Column clustering | Disabled -- columns are ordered by group for comparability |
+| Row clustering | Hierarchical clustering of molecules (`checkboxInput`, default on) |
+| Column clustering | Optional (`checkboxInput`, default off); when off, columns are ordered by group for comparability |
+| Colour scale limit | Symmetric ± Z-score limit for the colour scale (`sliderInput`, 1-4, default 2). Z-scores beyond the limit get the darkest colour: **lower** values give a darker, higher-contrast heatmap where small differences stand out; **higher** values give a lighter heatmap with more shades between extremes. Shared with the DE Heatmap |
 | Row name display | Shown when <= 100 molecules are matched |
+| Column name display | Sample names shown when <= 60 samples (hidden above that to stay readable) |
 | Z-score scaling | Applied row-wise before rendering |
 | Plot title | Includes the selected category name and active metadata filter |
 | Plot height | Adjustable rendering height in pixels (`numericInput`, default 700) |
+| Batch download | **Download Filtered Heatmaps (N) (.zip)** -- one PNG per keyword-filtered pathway; see below |
 | Status line | Reports active metadata filter, samples used, category name, gene list size, matched proteins, and sample column names |
 
 ### Tab 5 -- Boxplot
@@ -528,13 +745,68 @@ molecule across sample groups, using only the filtered samples.
 
 | Feature | Details |
 |---|---|
-| Molecule selector | `selectizeInput` with type-ahead search; lists all molecules present in both the enrichment file and the normalized data (up to 2000 options) |
+| Molecule selector | `selectizeInput` with type-ahead search; lists all molecules present in both the enrichment file and the normalized data, with the matched count in the label |
 | Plot type toggle | Switch between boxplot and violin plot (`radioButtons`) |
 | Data points overlay | Individual sample points overlaid via `geom_jitter` (always on) |
 | Colour by group | Per-group colours shared with the Heatmap Settings section |
 | Plot subtitle | Shows the active metadata filter when one is set |
 | Plot height | Adjustable rendering height in pixels (`numericInput`, default 500) |
 | Status line | Reports active metadata filter, plot type, selected molecule, sample count, groups, and value range |
+
+### Tab 6 -- Volcano
+
+Plots every tested feature from the differential analysis file: log2 fold
+change on the x-axis and -log10(adjusted p-value) on the y-axis. Requires the
+optional DE file.
+
+| Feature | Details |
+|---|---|
+| Cutoffs | Features with \|log2FC\| >= cutoff **and** padj < cutoff are coloured Up / Down; all others are grey. Dashed lines mark the cutoffs |
+| Legend | Shows the number of Up and Down features |
+| Labels | Top N significant features by padj (`numericInput`, default 10) plus any IDs typed in the label box (case-insensitive); non-overlapping via `ggrepel` |
+| Colours | Up and Down colours (`textInput`, defaults `firebrick` / `steelblue`) |
+| padj = 0 | Capped at the smallest representable number so the point is plotted instead of being lost as infinite |
+| Plot height | Adjustable (`numericInput`, default 600) |
+| Status line | Reports the DE columns used, cutoffs, number of features tested (and rows removed for missing padj), and Up / Down counts |
+
+The metadata filter does not apply here: the volcano plot shows the DE results
+as uploaded.
+
+### Tab 7 -- PCA
+
+Principal component analysis of the samples in the normalized data file,
+using only samples retained by the metadata filter. Does **not** require the
+DE file unless the DE-significant feature set is chosen.
+
+| Feature | Details |
+|---|---|
+| Features used | All features, the top N most variable features (default 500), or only DE-significant features passing the cutoffs (`radioButtons`) |
+| log2(x + 1) | Applied when the shared toggle in the Differential Analysis panel is on (default). Turn it off for data that are already log-transformed, as is common for proteomics and metabolomics. The app stops with a message if the data contain negative values while the toggle is on |
+| Scaling | Features are always centred; optionally scaled to unit variance (`checkboxInput`, default off) |
+| PCs | Choose which components go on the x and y axes (default PC1 vs PC2); axis labels show % variance explained |
+| Colours | Points coloured by the group column, using the per-group colours from Heatmap Settings |
+| Sample labels | Optional, non-overlapping via `ggrepel` (`checkboxInput`, default off) |
+| Plot height | Adjustable (`numericInput`, default 600) |
+| Status line | Reports active metadata filter, samples, features used, transformation, and variance explained by PC1-PC5 |
+
+Features with missing values or zero variance are removed before PCA. At
+least 3 samples are required.
+
+### Tab 8 -- DE Heatmap
+
+A heatmap of the features passing the fold-change and adjusted p-value
+cutoffs, drawn with the same engine as the pathway Heatmap tab. Requires the
+optional DE file.
+
+| Feature | Details |
+|---|---|
+| Direction | Up & down, Up only, or Down only (`radioButtons`) |
+| Max features | The top N significant features by padj that are present in the normalized data (`numericInput`, default 50) |
+| Values | log2(x + 1) (if the shared toggle is on), then row Z-score |
+| Shared settings | Row/column clustering, colour-scale limit and group colours come from Heatmap Settings |
+| Samples | Only samples retained by the metadata filter |
+| Plot height | Adjustable (`numericInput`, default 800) |
+| Status line | Reports active metadata filter, cutoffs, direction, number of significant features, number shown, samples used, and transformation |
 
 ---
 
@@ -547,6 +819,7 @@ molecule across sample groups, using only the filtered samples.
 | `file_norm_prot` | `fileInput` | Normalized Data (.csv) | `.csv` |
 | `file_annotation` | `fileInput` | Metadata or Sample Annotation (.csv) | `.csv` |
 | `file_ipa_funct` | `fileInput` | Enriched Pathway or Functions (.csv) | `.csv` |
+| `file_de` | `fileInput` | Differential Analysis Results (.csv) -- optional | `.csv` |
 
 ### Metadata Filter Controls *(introduced in v1.2.0)*
 
@@ -561,9 +834,9 @@ molecule across sample groups, using only the filtered samples.
 
 | Input ID | Widget type | Label | Default |
 |---|---|---|---|
-| `col_category` | `selectInput` | Category column | First column of enrichment file |
-| `col_molecules` | `selectInput` | Molecules column | Auto-detected by keyword |
-| `mol_separator` | `radioButtons` | Gene/molecule separator | `,` |
+| `col_category` | `selectInput` | Category column | Detected pathway-name column (see [Supported enrichment tools](#supported-enrichment-tools)) |
+| `col_molecules` | `selectInput` | Molecules column | Text column matching a keyword (`core_enrichment`, `geneID`, `molecules`, `members`, `genes`, ...); otherwise the text column with the most separators. Numeric columns are never auto-selected; **(none)** if the file has no member list |
+| `mol_separator` | `radioButtons` | Gene/molecule separator | The separator found most often in the molecules column (re-detected whenever that column changes); `,` if none found |
 
 ### Normalized Data Column Controls
 
@@ -583,11 +856,17 @@ molecule across sample groups, using only the filtered samples.
 | Input ID | Widget type | Label | Default |
 |---|---|---|---|
 | `barplot_type` | `radioButtons` | Plot type | `bar` |
-| `col_pvalue` | `selectInput` | P-value column | Auto-detected by keyword |
+| `col_pvalue` | `selectInput` | P-value column | Detected significance column; adjusted p-values preferred |
 | `bar_top_n` | `numericInput` | Show top N pathways | `20` |
-| `bar_color` | `textInput` | Bar fill colour | `steelblue` |
-| `bubble_size_col` | `selectInput` | Bubble SIZE column | Auto-detected by keyword |
-| `bubble_color_col` | `selectInput` | Bubble COLOUR column | Auto-detected by keyword |
+| `label_mode` | `selectInput` | Long pathway names (Wrap / Truncate / Show in full) | `wrap` |
+| `label_width` | `numericInput` | Max characters (per line when wrapping) | `50` |
+| `bar_fill_col` | `selectInput` | Colour bars by | None (single colour); lists numeric columns |
+| `bar_fill_scale` | `radioButtons` | Colour scale | `auto` |
+| `bar_palette` | `selectInput` | Gradient palette | `Blues` |
+| `bar_neg_color` / `bar_pos_color` | `textInput` | Negative / Positive colour (diverging) | `steelblue` / `darkorange` |
+| `bar_color` | `textInput` | Bar fill colour (when not colouring by a column) | `steelblue` |
+| `bubble_size_col` | `selectInput` | Bubble SIZE column | Numeric column matching a keyword (`count`, `size`, `ratio`, ...) |
+| `bubble_color_col` | `selectInput` | Bubble COLOUR column | Same as the detected significance column |
 | `bubble_size_range` | `sliderInput` | Bubble size range | `3` - `15` |
 | `bubble_palette` | `selectInput` | Colour palette | `Blues` |
 | `bar_plot_height` | `numericInput` | Plot height (px) | `600` |
@@ -605,7 +884,7 @@ molecule across sample groups, using only the filtered samples.
 |---|---|---|---|
 | `chord_top_n` | `numericInput` | Top N pathways | `10` |
 | `chord_min_freq` | `numericInput` | Minimum molecule frequency | `2` |
-| `chord_inner_radius` | `sliderInput` | Inner circle size | `0.4` |
+| `chord_inner_radius` | `sliderInput` | Link curve depth | `0.4` (range 0.2-0.9) |
 | `chord_label_size_path` | `numericInput` | Pathway label font size | `0.55` |
 | `chord_label_size_mol` | `numericInput` | Molecule label font size | `0.70` |
 | `chord_pathway_color` | `textInput` | Pathway sector colour | `tomato` |
@@ -617,6 +896,7 @@ molecule across sample groups, using only the filtered samples.
 | Input ID | Widget type | Label | Default |
 |---|---|---|---|
 | `freq_pathway_scope` | `radioButtons` | Pathways used to compute gene frequency | `all` |
+| `freq_use_keyword_filter` | `checkboxInput` | Apply the pathway keyword filter (if one is active) | `TRUE` |
 | `freq_top_n_pathways` | `numericInput` | Top N pathways (visible when scope = top) | `20` |
 | `freq_min_pathways` | `numericInput` | Minimum # pathways a gene must appear in | `5` |
 | `freq_top_n_genes` | `numericInput` | Show top N genes (after filtering) | `50` |
@@ -626,10 +906,10 @@ molecule across sample groups, using only the filtered samples.
 
 | Input ID | Widget type | Label | Default |
 |---|---|---|---|
-| `selected_category` | `selectInput` | Select category | First category in keyword-filtered enrichment table |
+| `selected_category` | `selectizeInput` (server-side) | Select: `<category column>` (N) | First category in keyword-filtered enrichment table; current choice kept if still available |
 | `heatmap_cluster_rows` | `checkboxInput` | Cluster rows | `TRUE` |
 | `heatmap_cluster_cols` | `checkboxInput` | Cluster columns | `FALSE` |
-| `heatmap_scale_limit` | `sliderInput` | Colour scale limit (± Z-score) | `2` |
+| `heatmap_scale_limit` | `sliderInput` | Colour scale limit (± Z-score); lower = darker, higher = lighter | `2` |
 | `color_group_<i>` | `textInput` | Colour -- `<group>` | Cycles through preset palette |
 | `plot_height` | `numericInput` | Heatmap height (px) | `700` |
 
@@ -638,8 +918,48 @@ molecule across sample groups, using only the filtered samples.
 | Input ID | Widget type | Label | Default / Notes |
 |---|---|---|---|
 | `plot_type` | `radioButtons` | Plot type | `box` |
-| `boxplot_protein` | `selectizeInput` | Search protein / gene | First matched molecule; type-ahead, up to 2000 options |
+| `boxplot_protein` | `selectizeInput` (server-side) | Search protein / gene / metabolite (N matched) | First matched molecule; current choice kept if still available |
 | `boxplot_height` | `numericInput` | Plot height (px) | `500` |
+
+### Differential Analysis
+
+| Input ID | Widget type | Label | Default |
+|---|---|---|---|
+| `de_col_gene` | `selectInput` | Feature ID column | Same name as the normalized data ID column if present, else auto-detected |
+| `de_col_lfc` | `selectInput` | log2 fold-change column | Auto-detected by keyword |
+| `de_col_padj` | `selectInput` | Adjusted p-value column | Auto-detected by keyword |
+| `de_lfc_cut` | `numericInput` | \|log2 fold change\| >= | `1` |
+| `de_padj_cut` | `numericInput` | Adjusted p-value < | `0.05` |
+| `de_log_transform` | `checkboxInput` | Apply log2(x + 1) to normalized data (PCA & DE heatmap) | `TRUE` |
+
+### Volcano Plot Settings
+
+| Input ID | Widget type | Label | Default |
+|---|---|---|---|
+| `volcano_top_labels` | `numericInput` | Label top N significant features | `10` |
+| `volcano_label_genes` | `textInput` | Also label these features | *(blank)* |
+| `volcano_up_color` | `textInput` | Up-regulated colour | `firebrick` |
+| `volcano_down_color` | `textInput` | Down-regulated colour | `steelblue` |
+| `volcano_height` | `numericInput` | Plot height (px) | `600` |
+
+### PCA Settings
+
+| Input ID | Widget type | Label | Default |
+|---|---|---|---|
+| `pca_gene_set` | `radioButtons` | Features used for PCA | `top` |
+| `pca_top_n` | `numericInput` | Top N most variable features (visible when set = top) | `500` |
+| `pca_scale` | `checkboxInput` | Scale features to unit variance | `FALSE` |
+| `pca_x` / `pca_y` | `numericInput` | X-axis PC / Y-axis PC | `1` / `2` |
+| `pca_show_labels` | `checkboxInput` | Show sample labels | `FALSE` |
+| `pca_height` | `numericInput` | Plot height (px) | `600` |
+
+### DE Heatmap Settings
+
+| Input ID | Widget type | Label | Default |
+|---|---|---|---|
+| `de_heatmap_direction` | `radioButtons` | Features to show | `both` |
+| `de_heatmap_top_n` | `numericInput` | Max features (top N by padj) | `50` |
+| `de_heatmap_height` | `numericInput` | Plot height (px) | `800` |
 
 ---
 
@@ -654,8 +974,11 @@ respective plot:
 | `download_chord` / `download_chord_main` | Download Chord Diagram (.png) | PNG, 10 x 10 in, 300 DPI |
 | `download_gene_freq` / `download_gene_freq_main` | Download Frequency Plot (.png) | PNG, 12 x 7 in, 300 DPI |
 | `download_single` / `download_single_main` | Download Selected Heatmap (.png) | PNG, 8 x 10 in, 300 DPI |
-| `download_all` / `download_all_main` | Download ALL Heatmaps (.zip) | ZIP of PNG files, one per category |
+| `download_all` / `download_all_main` | Download Filtered Heatmaps (N) (.zip) | ZIP of PNG files (8 x 10 in, 300 DPI), one per keyword-filtered pathway; see below |
 | `download_boxplot_sidebar` / `download_boxplot_main` | Download Plot (.png) | PNG, 8 x 6 in, 300 DPI |
+| `download_volcano` / `download_volcano_main` | Download Volcano Plot (.png) | PNG, 9 x 7 in, 300 DPI |
+| `download_pca` / `download_pca_main` | Download PCA Plot (.png) | PNG, 9 x 7 in, 300 DPI |
+| `download_de_heatmap` / `download_de_heatmap_main` | Download DE Heatmap (.png) | PNG, 8 x 10 in, 300 DPI |
 
 File names are auto-generated in the format:
 
@@ -665,10 +988,28 @@ Bubbleplot_Enriched_Pathways_YYYYMMDD_HHMMSS.png
 Chord_Diagram_Pathways_Molecules.png
 Gene_Frequency_YYYYMMDD_HHMMSS.png
 Heatmap_<Category>.png
-All_Heatmaps.zip
+Filtered_Heatmaps_YYYYMMDD_HHMMSS.zip   (contains Heatmap_<Category>.png files)
 Boxplot_<Molecule>.png
 Violin_<Molecule>.png
+Volcano_YYYYMMDD_HHMMSS.png
+PCA_YYYYMMDD_HHMMSS.png
+DE_Heatmap_YYYYMMDD_HHMMSS.png
 ```
+
+### Batch heatmap download
+
+Exporting a heatmap for every pathway in a large enrichment file (often
+1,000+ gene sets) takes a long time and can time out on hosted servers, so
+the batch download is restricted:
+
+- It is **only available while a keyword filter is active** (pathway name
+  and/or molecule). Without a filter, a note explains how to enable it.
+- It exports **only the keyword-filtered pathways**, and the button shows how
+  many, e.g. *Download Filtered Heatmaps (24) (.zip)*.
+- It is capped at **100 pathways**. Above that, the button is replaced by a
+  message asking you to narrow the filter.
+- Pathways that cannot be drawn (fewer than 2 matched features, or zero
+  variance) are skipped.
 
 ---
 
@@ -698,10 +1039,6 @@ rsconnect::deployApp(
 )
 ```
 
-> **Cairo graphics** are not available on the shinyapps.io free tier.
-> Remove `type = "cairo-png"` from all `png()` calls in the download handlers
-> before deploying.
-
 ### Shiny Server / Posit Connect
 
 Copy the project folder to the server apps directory and follow the standard
@@ -726,7 +1063,16 @@ server deployment documentation.
 | App crashes on upload | Wrong file format or encoding | Ensure files are comma-delimited UTF-8 CSV |
 | Molecule not found in boxplot selector | Identifier mismatch between files | Check for trailing spaces or case differences |
 | Download produces a blank PNG | Plot has not rendered yet | Switch to the desired tab and wait for the plot before downloading |
-| `cairo-png` error on shinyapps.io | Cairo not installed on server | Remove `type = "cairo-png"` from all `png()` calls |
+| `there is no package called 'tidyverse'` on launch | Dependencies installed individually | Run `install.packages("tidyverse")` |
+| Volcano / DE Heatmap tabs show nothing | DE file not uploaded | Upload the optional differential analysis file |
+| DE Heatmap: "Fewer than 2 significant features found" | Cutoffs too strict, or DE IDs differ from the normalized data IDs (e.g. Entrez vs symbol, UniProt vs gene name) | Relax the cutoffs, or pick matching ID columns in both the DE and Normalized data selectors |
+| PCA / DE Heatmap: "Data contain negative values" | Data are already log-transformed | Untick **Apply log2(x + 1)** in the Differential Analysis panel |
+| PCA looks dominated by a few features | Very different feature scales (common in metabolomics) | Tick **Scale features to unit variance** |
+| No "Download Filtered Heatmaps" button | No keyword filter active, or more than 100 pathways match | Enter a pathway-name or molecule keyword and narrow it until <= 100 pathways match |
+| Boxplot / heatmap find no molecules after upload | Wrong Molecules column or separator selected | Check the detected Molecules column and separator in **Select Pathway / Functions -- Column** |
+| Molecule keyword filter misses a gene | Molecule filter needs the whole symbol | Type the full symbol (e.g. `MAPK1`), use a wildcard (`MAPK*`), or check the molecule separator setting |
+| Bar / bubble plot squeezed to the right | A very long pathway name | Set **Long pathway names** to Wrap or Truncate and lower **Max characters**; increase plot height if wrapped labels look crowded |
+| Heatmap looks washed out / too dark | Colour scale limit too high / too low | Lower the **colour scale limit** for more contrast, raise it for a lighter heatmap |
 | `object 'X' not found` on deploy | Unquoted string in `deployApp()` call | Wrap `appName` and `account` values in quotes |
 
 ---
