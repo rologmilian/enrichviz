@@ -1,4 +1,4 @@
-# EnrichViz Shiny App — v1.4.2
+# EnrichViz Shiny App — v1.4.3
 
 Interactive visualization of enriched pathways or biological functions from
 normalized proteomics, transcriptomics, or metabolomics data.
@@ -11,17 +11,18 @@ Licensed under the MIT License — see [License](#license) section below.
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [What's New in v1.4.2](#whats-new-in-v142)
-3. [What's New in v1.4.1](#whats-new-in-v141)
-4. [What's New in v1.4.0](#whats-new-in-v140)
-5. [What's New in v1.3.1](#whats-new-in-v131)
-6. [What's New in v1.3.0](#whats-new-in-v130)
-7. [What's New in v1.2.0](#whats-new-in-v120)
-8. [Requirements](#requirements)
-9. [Installation](#installation)
-10. [Input Files](#input-files)
-11. [App Structure](#app-structure)
-12. [Tabs and Features](#tabs-and-features)
+2. [What's New in v1.4.3](#whats-new-in-v143)
+3. [What's New in v1.4.2](#whats-new-in-v142)
+4. [What's New in v1.4.1](#whats-new-in-v141)
+5. [What's New in v1.4.0](#whats-new-in-v140)
+6. [What's New in v1.3.1](#whats-new-in-v131)
+7. [What's New in v1.3.0](#whats-new-in-v130)
+8. [What's New in v1.2.0](#whats-new-in-v120)
+9. [Requirements](#requirements)
+10. [Installation](#installation)
+11. [Input Files](#input-files)
+12. [App Structure](#app-structure)
+13. [Tabs and Features](#tabs-and-features)
    - [Tab 1 -- Bar Plot](#tab-1--bar-plot)
    - [Tab 2 -- Chord Diagram](#tab-2--chord-diagram)
    - [Tab 3 -- Molecule Frequency](#tab-3--molecule-frequency)
@@ -30,17 +31,17 @@ Licensed under the MIT License — see [License](#license) section below.
    - [Tab 6 -- Volcano](#tab-6--volcano)
    - [Tab 7 -- PCA](#tab-7--pca)
    - [Tab 8 -- DE Heatmap](#tab-8--de-heatmap)
-13. [Sidebar Controls Reference](#sidebar-controls-reference)
-14. [Download Outputs](#download-outputs)
-15. [Deployment](#deployment)
-16. [Tips and Troubleshooting](#tips-and-troubleshooting)
-17. [License](#license)
+14. [Sidebar Controls Reference](#sidebar-controls-reference)
+15. [Download Outputs](#download-outputs)
+16. [Deployment](#deployment)
+17. [Tips and Troubleshooting](#tips-and-troubleshooting)
+18. [License](#license)
 
 ---
 
 ## Overview
 
-EnrichViz (v1.4.2) is an R Shiny application for interactive exploration and
+EnrichViz (v1.4.3) is an R Shiny application for interactive exploration and
 visualization of pathway or functional enrichment results derived from
 normalized proteomics, transcriptomics, or metabolomics experiments.
 
@@ -80,7 +81,37 @@ from the sidebar or from within each tab.
 
 The page header reads *"Heatmap, Bar/Bubble, Chord, Molecule Frequency,
 Box/Violin, Volcano, and PCA Plots of Pathway and Differential Analysis
-Results"*, and the browser tab title is *"EnrichViz v1.4.2"*.
+Results"*, and the browser tab title is *"EnrichViz v1.4.3"*.
+
+---
+
+## What's New in v1.4.3
+
+### Download size and text size for publication figures
+
+Plots used to download at fixed, large sizes (e.g. 14 x 8 in), so when they were
+placed in a journal figure (at most ~7.5 in wide) their text shrank to 3-4 pt.
+
+- **Download width / height (in)**: every tab now has width and height inputs
+  next to its download button (both download buttons of a tab use them). The
+  defaults are the previous sizes. For a journal panel, set them to the final
+  printed size (e.g. 3.5 in for one column, 7.5 in for full width); text then
+  prints at its real point size.
+- **Text size in downloaded plots (x)** (sidebar, under the file inputs): one
+  factor that enlarges (> 1) or shrinks (< 1) all text and lines in every
+  download, for ggplot2, pheatmap and circlize plots alike. A factor of 0.6
+  makes the 12-pt base text print at about 7 pt.
+- Downloads are written with `ragg::agg_png()` at 300 dpi (new dependency:
+  **ragg**).
+- Pathway heatmap titles wrap long pathway names (30 characters per line).
+- Molecule Frequency x-axis labels follow the theme text size (were fixed at
+  7 pt).
+- The Heatmap status line says "Molecules in list / Molecules matched" and lists
+  only the first 5 sample columns.
+
+Example: the panels of the manuscript's transcriptomics figure were exported at
+4.6 x 2.8 in (bar, frequency), 2.9 x 2.8 in (chord, violin), 2.9 x 3.1 in
+(heatmap) and 4.6 x 3.1 in (volcano) with a text factor of 0.6.
 
 ---
 
@@ -468,15 +499,16 @@ To then repeat the comparison for females, change the checked value to
 | circlize | >= 0.4.15 |
 | pheatmap | >= 1.0.12 |
 | ggrepel | >= 0.9.0 (non-overlapping labels on volcano and PCA plots) |
+| ragg | >= 1.2.0 (PNG downloads with adjustable text size; new in v1.4.3) |
 
-The app loads these five packages with `library()`. Colour palettes
+The app loads these six packages with `library()`. Colour palettes
 (viridis, ColorBrewer) are provided through ggplot2's own dependencies, so
 no extra palette packages need to be installed.
 
 Install all R dependencies at once:
 
 ```r
-install.packages(c("shiny", "tidyverse", "circlize", "pheatmap", "ggrepel"))
+install.packages(c("shiny", "tidyverse", "circlize", "pheatmap", "ggrepel", "ragg"))
 ```
 
 > **Note:** v1.2.0 replaced `ComplexHeatmap` (Bioconductor) with `pheatmap`
@@ -487,7 +519,7 @@ install.packages(c("shiny", "tidyverse", "circlize", "pheatmap", "ggrepel"))
 ## Installation
 
 1. Clone or download this repository.
-2. Place `app.R` (v1.4.2) in a dedicated project folder.
+2. Place `app.R` (v1.4.3) in a dedicated project folder.
 3. Install all dependencies listed above.
 4. Launch the app from R or RStudio:
 
@@ -1024,11 +1056,14 @@ optional DE file.
 ## Download Outputs
 
 Each tab exposes two download buttons (sidebar and in-tab footer) for its
-respective plot:
+respective plot. All downloads are 300 dpi PNG files. Since v1.4.3 the width and
+height are set per tab (inputs `dlw_<key>` / `dlh_<key>` next to the in-tab
+button; the sizes below are the defaults), and the sidebar input
+`dl_text_scale` scales all text and lines in the downloads (default 1).
 
 | Output ID | Label | Format |
 |---|---|---|
-| `download_barplot` / `download_barplot_main` | Download Plot (.png) | PNG, 4200 x 2400 px, 300 DPI |
+| `download_barplot` / `download_barplot_main` | Download Plot (.png) | PNG, 14 x 8 in (default), 300 DPI |
 | `download_chord` / `download_chord_main` | Download Chord Diagram (.png) | PNG, 10 x 10 in, 300 DPI |
 | `download_gene_freq` / `download_gene_freq_main` | Download Frequency Plot (.png) | PNG, 12 x 7 in, 300 DPI |
 | `download_single` / `download_single_main` | Download Selected Heatmap (.png) | PNG, 8 x 10 in, 300 DPI |

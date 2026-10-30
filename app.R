@@ -1,5 +1,6 @@
 # app.R
 # Heatmaps, Bar/Bubble Plots, Chord Diagrams, Boxplot/Violin, Volcano and PCA plots visualization
+# v.1.4.3  — download width/height per plot and text-size scaling (ragg); "Molecules" wording in heatmap status
 # v.1.4.2  — Molecule Frequency (renamed) coloured by log2FC; chord label/colour fixes; box/violin x label, trimmed violins
 # v.1.4.1  — chord diagram no longer fails with many molecules (adaptive sector gaps)
 # v.1.4.0  — adds optional differential analysis file: volcano plot, PCA, DE heatmap
@@ -12,16 +13,30 @@ library(pheatmap)
 library(tidyverse)
 library(circlize)
 library(ggrepel)
+library(ragg)      # PNG downloads with adjustable text scaling
 
 
 options(shiny.maxRequestSize = 500 * 1024^2)
+
+# Default download sizes (inches) for each plot; users can change them per tab
+dl_defaults <- list(bar = c(14, 8), chord = c(10, 10), freq = c(12, 7), heat = c(8, 10),
+                    box = c(8, 6), volcano = c(9, 7), pca = c(9, 7), deheat = c(8, 10))
+
+# Width / height inputs shown next to each tab's download button
+dl_size_ui <- function(key) {
+  d <- dl_defaults[[key]]
+  fluidRow(
+    column(3, numericInput(paste0("dlw_", key), "Download width (in)",  value = d[1], min = 1, max = 30, step = 0.25)),
+    column(3, numericInput(paste0("dlh_", key), "Download height (in)", value = d[2], min = 1, max = 30, step = 0.25))
+  )
+}
 
 # ══════════════════════════════════════════════════════════════════════════════
 # UI
 # ══════════════════════════════════════════════════════════════════════════════
 ui <- fluidPage(
   
-  tags$head(tags$title("EnrichViz v1.4.2")),
+  tags$head(tags$title("EnrichViz v1.4.3")),
   
   tags$style(HTML("
     html, body { height: 100%; overflow: hidden; }
@@ -165,6 +180,11 @@ ui <- fluidPage(
       fileInput("file_annotation", "Metadata or Sample Annotation (.csv)", accept = ".csv"),
       fileInput("file_ipa_funct",  "Enriched Pathway or Functions (.csv)", accept = ".csv"),
       fileInput("file_de",         "Differential Analysis Results (.csv) \u2014 optional", accept = ".csv"),
+      numericInput("dl_text_scale", "Text size in downloaded plots (×)", value = 1, min = 0.3, max = 3, step = 0.1),
+      helpText("Downloads are 300 dpi PNG files of the width and height set below each plot.",
+               "For a journal panel, set them to the final printed size (e.g. 3.5 in for one column,",
+               "7.5 in for full width); text then prints at its real point size. Use this factor to",
+               "enlarge (> 1) or shrink (< 1) all text and lines in the downloads."),
       
       hr(),
       
@@ -464,6 +484,7 @@ helpText("Group colours are shared with Heatmap Settings above."),
                  verbatimTextOutput("barplot_status"),
                  plotOutput("barplot", height = "600px"),
                  br(),
+                 dl_size_ui("bar"),
                  downloadButton("download_barplot_main", "\u2b07 Download Plot (.png)")
         ),
         
@@ -472,6 +493,7 @@ helpText("Group colours are shared with Heatmap Settings above."),
                  verbatimTextOutput("chord_status"),
                  plotOutput("chord_plot", height = "750px"),
                  br(),
+                 dl_size_ui("chord"),
                  downloadButton("download_chord_main", "\u2b07 Download Chord Diagram (.png)")
         ),
         
@@ -480,6 +502,7 @@ helpText("Group colours are shared with Heatmap Settings above."),
                  verbatimTextOutput("gene_freq_status"),
                  plotOutput("gene_freq_plot", height = "600px"),
                  br(),
+                 dl_size_ui("freq"),
                  downloadButton("download_gene_freq_main", "\u2b07 Download Plot (.png)")
         ),
         
@@ -488,6 +511,7 @@ helpText("Group colours are shared with Heatmap Settings above."),
                  verbatimTextOutput("status"),
                  plotOutput("heatmap_plot", height = "700px"),
                  br(),
+                 dl_size_ui("heat"),
                  downloadButton("download_single_main", "\u2b07 Download Selected Heatmap (.png)"),
                  br(), br(),
                  uiOutput("ui_download_all_main")
@@ -498,6 +522,7 @@ helpText("Group colours are shared with Heatmap Settings above."),
                  verbatimTextOutput("boxplot_status"),
                  plotOutput("boxplot_plot", height = "500px"),
                  br(),
+                 dl_size_ui("box"),
                  downloadButton("download_boxplot_main", "\u2b07 Download Plot (.png)")
         ),
         
@@ -506,6 +531,7 @@ helpText("Group colours are shared with Heatmap Settings above."),
                  verbatimTextOutput("volcano_status"),
                  plotOutput("volcano_plot", height = "600px"),
                  br(),
+                 dl_size_ui("volcano"),
                  downloadButton("download_volcano_main", "\u2b07 Download Plot (.png)")
         ),
         
@@ -514,6 +540,7 @@ helpText("Group colours are shared with Heatmap Settings above."),
                  verbatimTextOutput("pca_status"),
                  plotOutput("pca_plot", height = "600px"),
                  br(),
+                 dl_size_ui("pca"),
                  downloadButton("download_pca_main", "\u2b07 Download Plot (.png)")
         ),
         
@@ -522,6 +549,7 @@ helpText("Group colours are shared with Heatmap Settings above."),
                  verbatimTextOutput("de_heatmap_status"),
                  plotOutput("de_heatmap_plot", height = "800px"),
                  br(),
+                 dl_size_ui("deheat"),
                  downloadButton("download_de_heatmap_main", "\u2b07 Download Plot (.png)")
         )
       )
@@ -925,9 +953,10 @@ ipa_funct_filtered <- reactive({
       filter_line,
       "Samples used     : ", length(sample_cols_resolved()),               "\n",
       "Category         : ", input$selected_category,                      "\n",
-      "Genes in list    : ", length(genes_interest()),                      "\n",
-      "Proteins matched : ", matched,                                       "\n",
-      "Sample columns   : ", paste(sample_cols_resolved(), collapse = ", ")
+      "Molecules in list: ", length(genes_interest()),                      "\n",
+      "Molecules matched: ", matched,                                       "\n",
+      "Sample columns   : ", paste(head(sample_cols_resolved(), 5), collapse = ", "),
+      if (length(sample_cols_resolved()) > 5) paste0(", ... (", length(sample_cols_resolved()), " in total)") else ""
     )
   })
   
@@ -1049,6 +1078,19 @@ ipa_funct_filtered <- reactive({
 
   # Shortens long pathway names for axis labels. Wrap breaks at spaces, "_" or "-"
   # (GSEA names such as GOBP_..._..._ have no spaces); at most `max_lines` lines.
+  # Save a plot as a 300 dpi PNG of the user-set size; `scaling` enlarges/shrinks all
+  # text and lines the same way for ggplot2, pheatmap (grid) and circlize (base) plots
+  dl_png <- function(file, key, draw) {
+    d <- dl_defaults[[key]]
+    num <- function(id, def) { v <- input[[id]]; if (is.null(v) || is.na(v) || v <= 0) def else v }
+    sc  <- num("dl_text_scale", 1)
+    ragg::agg_png(file, width = num(paste0("dlw_", key), d[1]), height = num(paste0("dlh_", key), d[2]),
+                  units = "in", res = 300, scaling = sc)
+    on.exit(dev.off(), add = TRUE)
+    draw()
+    invisible(TRUE)
+  }
+
   shorten_labels <- function(x, width = 50, mode = "wrap", max_lines = 3) {
     x <- as.character(x)
     if (is.null(mode) || mode == "full" || is.null(width) || is.na(width)) return(x)
@@ -1158,9 +1200,7 @@ ipa_funct_filtered <- reactive({
                                height = function() input$bar_plot_height)
   
   dl_barplot_handler <- function(file) {
-    png(file, width = 4200, height = 2400, res = 300)
-    print(make_barplot())
-    dev.off()
+    dl_png(file, "bar", function() print(make_barplot()))
   }
   dl_barplot_filename <- function() {
     paste0(if (input$barplot_type == "bubble") "Bubbleplot_" else "Barplot_",
@@ -1263,7 +1303,7 @@ ipa_funct_filtered <- reactive({
   
   output$chord_plot <- renderPlot({ req(chord_data()); make_chord() },
                                   height = function() input$chord_plot_height)
-  dl_chord_handler  <- function(file) { png(file, width = 10, height = 10, units = "in", res = 300); make_chord(); dev.off() }
+  dl_chord_handler  <- function(file) dl_png(file, "chord", make_chord)
   output$download_chord      <- downloadHandler(filename = function() "Chord_Diagram_Pathways_Molecules.png", content = dl_chord_handler)
   output$download_chord_main <- downloadHandler(filename = function() "Chord_Diagram_Pathways_Molecules.png", content = dl_chord_handler)
   
@@ -1395,7 +1435,7 @@ ipa_funct_filtered <- reactive({
         y = "Number of pathways"
       ) +
       theme_classic() +
-      theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 7))
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
   }
   
   output$gene_freq_plot <- renderPlot({
@@ -1406,8 +1446,7 @@ ipa_funct_filtered <- reactive({
     paste0("Molecule_Frequency_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".png")
   }
   dl_gene_freq_handler <- function(file) {
-    ggsave(file, plot = make_gene_freq_plot(),
-           width = 12, height = 7, dpi = 300, units = "in")
+    dl_png(file, "freq", function() print(make_gene_freq_plot()))
   }
   
   output$download_gene_freq      <- downloadHandler(filename = dl_gene_freq_filename, content = dl_gene_freq_handler)
@@ -1502,16 +1541,15 @@ ipa_funct_filtered <- reactive({
   output$heatmap_plot <- renderPlot({
     req(norm_prot(), annotation(), genes_interest(), input$selected_category)
     make_heatmap(gene_filter = genes_interest(),
-                 title_text  = paste0(input$selected_category, "\n(Z-score, by Group)"))
+                 title_text  = paste0(shorten_labels(input$selected_category, 30, "wrap", max_lines = 4), "\n(Z-score, by Group)"))
   }, height = function() input$plot_height)
   
   dl_single_filename <- function()
     paste0("Heatmap_", gsub("[^A-Za-z0-9]", "_", input$selected_category), ".png")
   dl_single_handler  <- function(file) {
-    png(file, width = 8, height = 10, units = "in", res = 300)
-    make_heatmap(gene_filter = genes_interest(),
-                 title_text  = paste0(input$selected_category, "\n(Z-score, by Group)"))
-    dev.off()
+    dl_png(file, "heat", function()
+      make_heatmap(gene_filter = genes_interest(),
+                   title_text  = paste0(shorten_labels(input$selected_category, 30, "wrap", max_lines = 4), "\n(Z-score, by Group)")))
   }
   output$download_single      <- downloadHandler(filename = dl_single_filename, content = dl_single_handler)
   output$download_single_main <- downloadHandler(filename = dl_single_filename, content = dl_single_handler)
@@ -1565,12 +1603,9 @@ genes <- ipa_funct() %>%
       png_path <- file.path(tmp_dir, paste0("Heatmap_", clean, ".png"))
       # A category that cannot be drawn (e.g. all genes zero-variance) is skipped
       # instead of aborting the whole archive; the device is always closed.
-      ok <- tryCatch({
-        png(png_path, width = 8, height = 10, units = "in", res = 300)
-        make_heatmap(gene_filter = genes, title_text = paste0(cat_val, "\n(Z-score, by Group)"))
-        TRUE
-      }, error = function(e) FALSE,
-      finally = dev.off())
+      ok <- tryCatch(dl_png(png_path, "heat", function()
+        make_heatmap(gene_filter = genes, title_text = paste0(shorten_labels(cat_val, 30, "wrap", max_lines = 4), "\n(Z-score, by Group)"))),
+        error = function(e) FALSE)
       if (ok) saved <- c(saved, png_path) else unlink(png_path)
     }
     validate(need(length(saved) > 0,
@@ -1729,7 +1764,7 @@ genes <- ipa_funct() %>%
     paste0(if (input$plot_type == "violin") "Violin_" else "Boxplot_",
            gsub("[^A-Za-z0-9]", "_", input$boxplot_protein), ".png")
   dl_boxplot_handler  <- function(file)
-    ggsave(file, plot = make_boxplot(), width = 8, height = 6, dpi = 300, units = "in")
+    dl_png(file, "box", function() print(make_boxplot()))
   
   output$download_boxplot_sidebar <- downloadHandler(filename = dl_boxplot_filename, content = dl_boxplot_handler)
   output$download_boxplot_main    <- downloadHandler(filename = dl_boxplot_filename, content = dl_boxplot_handler)
@@ -1853,7 +1888,7 @@ genes <- ipa_funct() %>%
   }
   
   output$volcano_plot <- renderPlot({ make_volcano() }, height = function() input$volcano_height)
-  dl_volcano_handler <- function(file) ggsave(file, plot = make_volcano(), width = 9, height = 7, dpi = 300, units = "in")
+  dl_volcano_handler <- function(file) dl_png(file, "volcano", function() print(make_volcano()))
   dl_volcano_filename <- function() paste0("Volcano_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".png")
   output$download_volcano      <- downloadHandler(filename = dl_volcano_filename, content = dl_volcano_handler)
   output$download_volcano_main <- downloadHandler(filename = dl_volcano_filename, content = dl_volcano_handler)
@@ -1940,7 +1975,7 @@ genes <- ipa_funct() %>%
   }
   
   output$pca_plot <- renderPlot({ make_pca() }, height = function() input$pca_height)
-  dl_pca_handler  <- function(file) ggsave(file, plot = make_pca(), width = 9, height = 7, dpi = 300, units = "in")
+  dl_pca_handler  <- function(file) dl_png(file, "pca", function() print(make_pca()))
   dl_pca_filename <- function() paste0("PCA_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".png")
   output$download_pca      <- downloadHandler(filename = dl_pca_filename, content = dl_pca_handler)
   output$download_pca_main <- downloadHandler(filename = dl_pca_filename, content = dl_pca_handler)
@@ -1984,9 +2019,7 @@ genes <- ipa_funct() %>%
   
   output$de_heatmap_plot <- renderPlot({ draw_de_heatmap() }, height = function() input$de_heatmap_height)
   dl_de_heatmap_handler <- function(file) {
-    png(file, width = 8, height = 10, units = "in", res = 300)
-    on.exit(dev.off(), add = TRUE)
-    draw_de_heatmap()
+    dl_png(file, "deheat", draw_de_heatmap)
   }
   dl_de_heatmap_filename <- function() paste0("DE_Heatmap_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".png")
   output$download_de_heatmap      <- downloadHandler(filename = dl_de_heatmap_filename, content = dl_de_heatmap_handler)
