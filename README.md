@@ -1,4 +1,4 @@
-# EnrichViz Shiny App — v1.4.1
+# EnrichViz Shiny App — v1.4.2
 
 Interactive visualization of enriched pathways or biological functions from
 normalized proteomics, transcriptomics, or metabolomics data.
@@ -11,35 +11,36 @@ Licensed under the MIT License — see [License](#license) section below.
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [What's New in v1.4.1](#whats-new-in-v141)
-3. [What's New in v1.4.0](#whats-new-in-v140)
-4. [What's New in v1.3.1](#whats-new-in-v131)
-5. [What's New in v1.3.0](#whats-new-in-v130)
-6. [What's New in v1.2.0](#whats-new-in-v120)
-7. [Requirements](#requirements)
-8. [Installation](#installation)
-9. [Input Files](#input-files)
-10. [App Structure](#app-structure)
-11. [Tabs and Features](#tabs-and-features)
+2. [What's New in v1.4.2](#whats-new-in-v142)
+3. [What's New in v1.4.1](#whats-new-in-v141)
+4. [What's New in v1.4.0](#whats-new-in-v140)
+5. [What's New in v1.3.1](#whats-new-in-v131)
+6. [What's New in v1.3.0](#whats-new-in-v130)
+7. [What's New in v1.2.0](#whats-new-in-v120)
+8. [Requirements](#requirements)
+9. [Installation](#installation)
+10. [Input Files](#input-files)
+11. [App Structure](#app-structure)
+12. [Tabs and Features](#tabs-and-features)
    - [Tab 1 -- Bar Plot](#tab-1--bar-plot)
    - [Tab 2 -- Chord Diagram](#tab-2--chord-diagram)
-   - [Tab 3 -- Gene Frequency](#tab-3--gene-frequency)
+   - [Tab 3 -- Molecule Frequency](#tab-3--molecule-frequency)
    - [Tab 4 -- Heatmap](#tab-4--heatmap)
    - [Tab 5 -- Boxplot](#tab-5--boxplot)
    - [Tab 6 -- Volcano](#tab-6--volcano)
    - [Tab 7 -- PCA](#tab-7--pca)
    - [Tab 8 -- DE Heatmap](#tab-8--de-heatmap)
-12. [Sidebar Controls Reference](#sidebar-controls-reference)
-13. [Download Outputs](#download-outputs)
-14. [Deployment](#deployment)
-15. [Tips and Troubleshooting](#tips-and-troubleshooting)
-16. [License](#license)
+13. [Sidebar Controls Reference](#sidebar-controls-reference)
+14. [Download Outputs](#download-outputs)
+15. [Deployment](#deployment)
+16. [Tips and Troubleshooting](#tips-and-troubleshooting)
+17. [License](#license)
 
 ---
 
 ## Overview
 
-EnrichViz (v1.4.1) is an R Shiny application for interactive exploration and
+EnrichViz (v1.4.2) is an R Shiny application for interactive exploration and
 visualization of pathway or functional enrichment results derived from
 normalized proteomics, transcriptomics, or metabolomics experiments.
 
@@ -58,9 +59,10 @@ coordinated views:
   functions by a user-selected metric.
 - A **Chord Diagram** showing co-membership of molecules across pathways or
   functions.
-- A **Gene Frequency Plot** displaying how many pathways each gene or molecule
-  appears in, with controls to restrict the analysis to all pathways or only
-  the top N most significant ones.
+- A **Molecule Frequency Plot** displaying how many pathways each gene,
+  protein or metabolite appears in, with controls to restrict the analysis to
+  all pathways or only the top N most significant ones, and bars optionally
+  coloured by log2 fold change from the differential analysis file.
 - A **Heatmap** of molecule-level abundances grouped by pathway or function.
 - A **Boxplot** (optionally rendered as a violin plot) displaying the
   distribution of abundance values for a selected molecule across groups.
@@ -76,9 +78,43 @@ genes, transcripts, proteins, or metabolites.
 All plots can be downloaded as publication-ready PNG files directly
 from the sidebar or from within each tab.
 
-The page header reads *"Heatmap, Bar/Bubble, Chord, Gene Frequency,
+The page header reads *"Heatmap, Bar/Bubble, Chord, Molecule Frequency,
 Box/Violin, Volcano, and PCA Plots of Pathway and Differential Analysis
-Results"*, and the browser tab title is *"EnrichViz v1.4.1"*.
+Results"*, and the browser tab title is *"EnrichViz v1.4.2"*.
+
+---
+
+## What's New in v1.4.2
+
+### Molecule Frequency (renamed from Gene Frequency), coloured by fold change
+
+- The **Gene Frequency** tab is renamed **Molecule Frequency**, since rows can
+  be genes, proteins or metabolites. The plot title, x-axis ("Molecule"),
+  sidebar labels, status line and download file name
+  (`Molecule_Frequency_YYYYMMDD_HHMMSS.png`) follow. Internal input and output
+  IDs (`freq_*`, `gene_freq_plot`) are unchanged.
+- **Colour bars by log2 fold change** (new checkbox, on by default): when the
+  optional differential analysis file is loaded, each bar is coloured by the
+  molecule's log2 fold change on a diverging scale centred at 0, using the
+  Volcano plot's Down / Up colours. Molecules not found in the DE file are
+  grey, and the status line reports how many of the shown molecules were
+  matched. Without a DE file, bars keep a single colour.
+
+### Chord diagram labels and colours
+
+- Long pathway names are cut to **Max characters in pathway labels** (new
+  input, default 35) and end in `…`, and the plot leaves more space around the
+  circle, so labels are no longer clipped at the edges.
+- Sector colours now range from a darker to a lighter shade of the chosen
+  colour. Previously they faded to light yellow, so the last pathways and their
+  links were nearly white.
+
+### Box / violin plots
+
+- The x-axis is labelled with the group column name.
+- Violins end at the lowest and highest observed values (`trim = TRUE`), so
+  count data no longer show density tails below zero.
+- The status line says "Selected molecule" (was "Selected protein").
 
 ---
 
@@ -451,7 +487,7 @@ install.packages(c("shiny", "tidyverse", "circlize", "pheatmap", "ggrepel"))
 ## Installation
 
 1. Clone or download this repository.
-2. Place `app.R` (v1.4.1) in a dedicated project folder.
+2. Place `app.R` (v1.4.2) in a dedicated project folder.
 3. Install all dependencies listed above.
 4. Launch the app from R or RStudio:
 
@@ -616,7 +652,7 @@ The main panel contains a `tabsetPanel` with **eight tabs**:
 |---|---|
 | 1 | Bar Plot |
 | 2 | Chord Diagram |
-| 3 | Gene Frequency |
+| 3 | Molecule Frequency |
 | 4 | Heatmap |
 | 5 | Boxplot |
 | 6 | Volcano |
@@ -641,10 +677,10 @@ The sidebar is divided into clearly labelled sections:
   inputs for filtering by pathway name and by molecule/gene symbol; live
   count badge; affects all downstream plots.
 - **Chord Diagram Settings** -- top N, minimum frequency, link curve depth,
-  label sizes, sector colours.
-- **Gene Frequency Plot Settings** *(new in v1.3.0)* -- pathway scope toggle,
-  optional top N pathways, minimum pathway count, top N genes, plot height,
-  download button.
+  label sizes, maximum pathway-label length, sector colours.
+- **Molecule Frequency Plot Settings** *(new in v1.3.0; renamed in v1.4.2)* --
+  pathway scope toggle, optional top N pathways, minimum pathway count, top N
+  molecules, plot height, colour by log2 fold change, download button.
 - **Heatmap Settings** -- category selector, per-group colour inputs, height,
   single-heatmap download, and the batch download of keyword-filtered
   heatmaps,
@@ -710,27 +746,30 @@ the top N pathways or functions.
 | Link curve depth | How far the links bend toward the centre (`sliderInput`, 0.2-0.9, default 0.4). Lower values keep links near the outer ring, which can look crowded; higher values arc links through the centre so they are easier to follow. Appearance only -- it does not filter pathways or molecules. (Previously labelled "Inner circle size") |
 | Pathway label size | Font size for pathway sector labels (`numericInput`, default 0.55) |
 | Molecule label size | Font size for molecule labels (`numericInput`, default 0.70) |
-| Pathway sector colour | Hex or named colour for pathway arcs (`textInput`, default `tomato`) |
+| Max characters in pathway labels | Longer pathway names are cut and end in `…` so they fit around the circle (`numericInput`, default 35) *(new in v1.4.2)* |
+| Pathway sector colour | Hex or named colour for pathway arcs (`textInput`, default `tomato`); sectors are shaded from a darker to a lighter tone of it |
 | Molecule sector colour | Hex or named colour for molecule arcs (`textInput`, default `steelblue`) |
 | Plot height | Adjustable rendering height in pixels (`numericInput`, default 750) |
 | Keyword filter | Pathway name and/or molecule filter applied upstream via `ipa_funct_filtered()` *(new in v1.3.1)* |
-| Status line | Reports active metadata filter, pathway count, molecule count, total connections, minimum frequency, and link curve depth |
+| Status line | Reports active metadata filter, pathway count, molecule count, total connections, minimum frequency, and link curve depth; suggests raising the minimum frequency when more than 100 molecules are shown |
 
-### Tab 3 -- Gene Frequency
+### Tab 3 -- Molecule Frequency
 
-Displays a bar chart of gene or molecule frequency across pathways, allowing
-rapid identification of hub molecules shared by many biological processes.
+Displays a bar chart of how many pathways each molecule (gene, protein or
+metabolite) belongs to, allowing rapid identification of hub molecules shared
+by many biological processes. Renamed from "Gene Frequency" in v1.4.2.
 
 | Feature | Details |
 |---|---|
 | Pathway scope | Toggle between using **all pathways** or only the **top N most significant** (`radioButtons`) |
 | Apply keyword filter | When ticked (default), frequencies use only the pathways retained by the Keyword Filter; untick to use all pathways even while a keyword filter is active (`checkboxInput`) |
 | Top N pathways | Number of top-ranked pathways to use when scope = Top N (`numericInput`, default 20; only visible when scope = Top N) |
-| Minimum pathway count | Only display genes appearing in at least this many pathways (`numericInput`, default 5) |
-| Top N genes | Maximum number of genes shown after filtering (`numericInput`, default 50) |
+| Minimum pathway count | Only display molecules appearing in at least this many pathways (`numericInput`, default 5) |
+| Top N molecules | Maximum number of molecules shown after filtering (`numericInput`, default 50) |
+| Colour by log2 fold change | When the DE file is loaded, bars are coloured by log2 fold change on a diverging scale centred at 0 (Volcano Down / Up colours); molecules not in the DE file are grey (`checkboxInput`, default on) *(new in v1.4.2)* |
 | Plot height | Adjustable rendering height in pixels (`numericInput`, default 600) |
 | Keyword filter | Pathway name and/or molecule filter applied upstream via `ipa_funct_filtered()` *(new in v1.3.1)* |
-| Status line | Reports active pathway scope, total gene count, genes meeting the minimum threshold, and number of genes displayed |
+| Status line | Reports active pathway scope, total molecule count, molecules meeting the minimum threshold, number displayed, and how many shown molecules were matched in the DE file |
 | Download | PNG (12 x 7 in, 300 DPI); file name includes a timestamp |
 
 ### Tab 4 -- Heatmap
@@ -762,7 +801,8 @@ molecule across sample groups, using only the filtered samples.
 | Feature | Details |
 |---|---|
 | Molecule selector | `selectizeInput` with type-ahead search; lists all molecules present in both the enrichment file and the normalized data, with the matched count in the label |
-| Plot type toggle | Switch between boxplot and violin plot (`radioButtons`) |
+| Plot type toggle | Switch between boxplot and violin plot (`radioButtons`); violins end at the observed minimum and maximum (`trim = TRUE`) |
+| Axes | x-axis labelled with the group column name; y-axis "Normalized abundance / counts" |
 | Data points overlay | Individual sample points overlaid via `geom_jitter` (always on) |
 | Colour by group | Per-group colours shared with the Heatmap Settings section |
 | Plot subtitle | Shows the active metadata filter when one is set |
@@ -903,20 +943,22 @@ optional DE file.
 | `chord_inner_radius` | `sliderInput` | Link curve depth | `0.4` (range 0.2-0.9) |
 | `chord_label_size_path` | `numericInput` | Pathway label font size | `0.55` |
 | `chord_label_size_mol` | `numericInput` | Molecule label font size | `0.70` |
+| `chord_label_width` | `numericInput` | Max characters in pathway labels | `35` |
 | `chord_pathway_color` | `textInput` | Pathway sector colour | `tomato` |
 | `chord_molecule_color` | `textInput` | Molecule sector colour | `steelblue` |
 | `chord_plot_height` | `numericInput` | Chord plot height (px) | `750` |
 
-### Gene Frequency Plot Settings *(new in v1.3.0)*
+### Molecule Frequency Plot Settings *(new in v1.3.0; renamed in v1.4.2)*
 
 | Input ID | Widget type | Label | Default |
 |---|---|---|---|
-| `freq_pathway_scope` | `radioButtons` | Pathways used to compute gene frequency | `all` |
+| `freq_pathway_scope` | `radioButtons` | Pathways used to compute molecule frequency | `all` |
 | `freq_use_keyword_filter` | `checkboxInput` | Apply the pathway keyword filter (if one is active) | `TRUE` |
 | `freq_top_n_pathways` | `numericInput` | Top N pathways (visible when scope = top) | `20` |
-| `freq_min_pathways` | `numericInput` | Minimum # pathways a gene must appear in | `5` |
-| `freq_top_n_genes` | `numericInput` | Show top N genes (after filtering) | `50` |
+| `freq_min_pathways` | `numericInput` | Minimum # pathways a molecule must appear in | `5` |
+| `freq_top_n_genes` | `numericInput` | Show top N molecules (after filtering) | `50` |
 | `freq_plot_height` | `numericInput` | Frequency plot height (px) | `600` |
+| `freq_color_lfc` | `checkboxInput` | Colour bars by log2 fold change (needs the differential analysis file) | `TRUE` |
 
 ### Heatmap Settings
 
@@ -1002,7 +1044,7 @@ File names are auto-generated in the format:
 Barplot_Enriched_Pathways_YYYYMMDD_HHMMSS.png
 Bubbleplot_Enriched_Pathways_YYYYMMDD_HHMMSS.png
 Chord_Diagram_Pathways_Molecules.png
-Gene_Frequency_YYYYMMDD_HHMMSS.png
+Molecule_Frequency_YYYYMMDD_HHMMSS.png
 Heatmap_<Category>.png
 Filtered_Heatmaps_YYYYMMDD_HHMMSS.zip   (contains Heatmap_<Category>.png files)
 Boxplot_<Molecule>.png
@@ -1067,8 +1109,8 @@ server deployment documentation.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Chord diagram is empty | No molecules exceed the minimum frequency threshold | Lower `chord_min_freq` (default is 2) |
-| Gene Frequency plot is empty | No genes meet the minimum pathway count | Lower `freq_min_pathways` (default is 5) or switch scope to "All pathways" |
-| Gene Frequency plot shows fewer genes than expected | Top N pathways scope is too restrictive | Increase `freq_top_n_pathways` or switch to "All pathways" |
+| Molecule Frequency plot is empty | No molecules meet the minimum pathway count | Lower `freq_min_pathways` (default is 5) or switch scope to "All pathways" |
+| Molecule Frequency plot shows fewer molecules than expected | Top N pathways scope is too restrictive | Increase `freq_top_n_pathways` or switch to "All pathways" |
 | All plots show no data after typing a keyword | Keyword does not match any pathway name or molecule | Check spelling or clear the keyword filter boxes |
 | Keyword filter retains fewer pathways than expected | Both filter boxes are active (AND logic) | Clear one box to broaden the match |
 | Heatmap category dropdown is empty after filtering | Active keyword filter excluded all pathways | Broaden or clear the keyword filter |

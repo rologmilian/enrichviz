@@ -1,5 +1,6 @@
 # app.R
 # Heatmaps, Bar/Bubble Plots, Chord Diagrams, Boxplot/Violin, Volcano and PCA plots visualization
+# v.1.4.2  — Molecule Frequency (renamed) coloured by log2FC; chord label/colour fixes; box/violin x label, trimmed violins
 # v.1.4.1  — chord diagram no longer fails with many molecules (adaptive sector gaps)
 # v.1.4.0  — adds optional differential analysis file: volcano plot, PCA, DE heatmap
 # Copyright 2026 RGM
@@ -20,7 +21,7 @@ options(shiny.maxRequestSize = 500 * 1024^2)
 # ══════════════════════════════════════════════════════════════════════════════
 ui <- fluidPage(
   
-  tags$head(tags$title("EnrichViz v1.4.1")),
+  tags$head(tags$title("EnrichViz v1.4.2")),
   
   tags$style(HTML("
     html, body { height: 100%; overflow: hidden; }
@@ -119,7 +120,7 @@ ui <- fluidPage(
       ),
       tags$div(
         tags$h2(
-          "Heatmap, Bar/Bubble, Chord, Gene Frequency, Box/Violin, Volcano, and PCA Plots of Pathway and Differential Analysis Results",
+          "Heatmap, Bar/Bubble, Chord, Molecule Frequency, Box/Violin, Volcano, and PCA Plots of Pathway and Differential Analysis Results",
           style = "margin:0 0 2px 0; font-size:18px; font-weight:bold;"
         ),
         tags$p(
@@ -127,7 +128,7 @@ ui <- fluidPage(
           HTML(
             "This app integrates normalized expression/abundance data with sample metadata
              and pathway/function enrichment results to generate bar/bubble plots, chord
-             diagrams, heatmaps, gene frequency, and box/violin plots.
+             diagrams, heatmaps, molecule frequency, and box/violin plots.
              <b>Files needed (CSV):</b> (1) Normalized data (rows = genes/proteins; columns = samples),
              (2) metadata/annotation (sample IDs + group/condition),
              (3) enrichment results (pathway/function name, p-value/FDR or -log10 value,
@@ -308,6 +309,8 @@ ui <- fluidPage(
                "This changes appearance only; it does not filter pathways or molecules."),
       numericInput("chord_label_size_path", "Pathway label font size",              value = 0.55, min = 0.3, max = 1.5, step = 0.05),
       numericInput("chord_label_size_mol",  "Molecule label font size",             value = 0.70, min = 0.3, max = 1.5, step = 0.05),
+      numericInput("chord_label_width",     "Max characters in pathway labels",     value = 35,   min = 10,  max = 150, step = 5),
+      helpText("Longer pathway names are cut and end in '\u2026' so they fit around the circle."),
       textInput("chord_pathway_color",      "Pathway sector colour (hex or name)",  value = "tomato"),
       textInput("chord_molecule_color",     "Molecule sector colour (hex or name)", value = "steelblue"),
       numericInput("chord_plot_height",     "Chord plot height (px)",               value = 750,  min = 400, max = 2000),
@@ -315,10 +318,10 @@ ui <- fluidPage(
       
       hr(),
       
-      h4("Gene Frequency Plot Settings"),
+      h4("Molecule Frequency Plot Settings"),
       radioButtons(
         "freq_pathway_scope",
-        "Pathways used to compute gene frequency",
+        "Pathways used to compute molecule frequency",
         choices  = c("All pathways" = "all", "Top N pathways (by significance)" = "top"),
         selected = "all",
         inline   = FALSE
@@ -332,14 +335,17 @@ ui <- fluidPage(
                      value = 20, min = 2, max = 200)
       ),
       numericInput("freq_min_pathways",
-                   "Minimum # pathways a gene must appear in",
+                   "Minimum # pathways a molecule must appear in",
                    value = 5, min = 1, max = 100),
       numericInput("freq_top_n_genes",
-                   "Show top N genes (after filtering)",
+                   "Show top N molecules (after filtering)",
                    value = 50, min = 5, max = 500),
       numericInput("freq_plot_height",
                    "Frequency plot height (px)",
                    value = 600, min = 300, max = 2000),
+      checkboxInput("freq_color_lfc",
+                    "Colour bars by log2 fold change (needs the differential analysis file)",
+                    value = TRUE),
       downloadButton("download_gene_freq", "Download Frequency Plot (.png)"),
       
       hr(),
@@ -469,7 +475,7 @@ helpText("Group colours are shared with Heatmap Settings above."),
                  downloadButton("download_chord_main", "\u2b07 Download Chord Diagram (.png)")
         ),
         
-        tabPanel("Gene Frequency",
+        tabPanel("Molecule Frequency",
                  br(),
                  verbatimTextOutput("gene_freq_status"),
                  plotOutput("gene_freq_plot", height = "600px"),
@@ -780,7 +786,7 @@ ipa_funct_filtered <- reactive({
                   selected = if (is.null(default)) "" else default),
       if (is.null(default))
         helpText("\u26a0 No column with member genes / proteins / metabolites was found.",
-                 "The Bar Plot works; Chord Diagram, Gene Frequency, Heatmap and Boxplot",
+                 "The Bar Plot works; Chord Diagram, Molecule Frequency, Heatmap and Boxplot",
                  "need a column listing each pathway's members.")
     )
   })
@@ -1217,15 +1223,25 @@ ipa_funct_filtered <- reactive({
     n_path <- nrow(mat); n_mol <- ncol(mat)
     pathway_color  <- if (is.null(input$chord_pathway_color)  || input$chord_pathway_color  == "") "tomato"    else input$chord_pathway_color
     molecule_color <- if (is.null(input$chord_molecule_color) || input$chord_molecule_color == "") "steelblue" else input$chord_molecule_color
-    path_cols   <- colorRampPalette(c(pathway_color,  "lightyellow"))(n_path)
-    mol_cols    <- colorRampPalette(c(molecule_color, "lightyellow"))(n_mol)
+    # Shades from a darker to a lighter tone of each base colour (the old ramp to "lightyellow"
+    # made the last sectors and their links nearly white)
+    shade_ramp  <- function(col, n) {
+      dark  <- colorRampPalette(c(col, "black"))(5)[2]
+      light <- colorRampPalette(c(col, "white"))(5)[3]
+      colorRampPalette(c(dark, col, light))(n)
+    }
+    path_cols   <- shade_ramp(pathway_color,  n_path)
+    mol_cols    <- shade_ramp(molecule_color, n_mol)
     grid_colors <- c(setNames(path_cols, rownames(mat)), setNames(mol_cols, colnames(mat)))
+    lab_width   <- if (is.null(input$chord_label_width) || is.na(input$chord_label_width)) 35 else input$chord_label_width
     circos.clear()
     par(mar = c(2, 2, 3, 2))
     # A fixed 2-degree gap per sector fails when there are more than ~180 sectors
     # (circlize: "gap.degree is too large"), so the gaps take at most 1/4 of the circle.
     gap <- min(2, 90 / (n_path + n_mol))
-    circos.par("gap.after" = gap, "start.degree" = 90)
+    # Extra canvas around the circle so outward-facing labels are not clipped
+    circos.par("gap.after" = gap, "start.degree" = 90,
+               "canvas.xlim" = c(-1.5, 1.5), "canvas.ylim" = c(-1.5, 1.5))
     chordDiagram(mat, h = input$chord_inner_radius, grid.col = grid_colors,
                  transparency = 0.4, annotationTrack = "grid",
                  preAllocateTracks = list(track.height = 0.08), directional = FALSE)
@@ -1234,7 +1250,8 @@ ipa_funct_filtered <- reactive({
       xlim        <- get.cell.meta.data("xlim")
       ylim        <- get.cell.meta.data("ylim")
       is_pathway  <- sector_name %in% rownames(mat)
-      circos.text(mean(xlim), ylim[1] + 0.1, sector_name,
+      label       <- if (is_pathway) shorten_labels(sector_name, lab_width, "truncate") else sector_name
+      circos.text(mean(xlim), ylim[1] + 0.1, label,
                   facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5),
                   cex = if (is_pathway) input$chord_label_size_path else input$chord_label_size_mol)
     }, bg.border = NA)
@@ -1251,7 +1268,7 @@ ipa_funct_filtered <- reactive({
   output$download_chord_main <- downloadHandler(filename = function() "Chord_Diagram_Pathways_Molecules.png", content = dl_chord_handler)
   
   # ══════════════════════════════════════════════════════════════════════════
-  # GENE FREQUENCY BAR PLOT (All pathways OR Top N pathways)
+  # MOLECULE FREQUENCY BAR PLOT (All pathways OR Top N pathways)
   # ══════════════════════════════════════════════════════════════════════════
   gene_freq_data <- reactive({
     validate(need(has_members(), members_msg))
@@ -1317,12 +1334,34 @@ ipa_funct_filtered <- reactive({
       filter_line,
       kw_line,
       scope_line, "\n",
-      "Genes total     : ", nrow(gf), "\n",
-      "Genes with >= ", input$freq_min_pathways, " pathways: ", nrow(gf_filt), "\n",
-      "Showing top     : ", min(input$freq_top_n_genes, nrow(gf_filt))
+      "Molecules total : ", nrow(gf), "\n",
+      "Molecules with >= ", input$freq_min_pathways, " pathways: ", nrow(gf_filt), "\n",
+      "Showing top     : ", min(input$freq_top_n_genes, nrow(gf_filt)),
+      freq_lfc_line()
     )
   })
   
+  # log2 fold changes from the DE file, used to colour the frequency bars (NULL if not available)
+  freq_lfc <- reactive({
+    if (!isTRUE(input$freq_color_lfc) || is.null(input$file_de)) return(NULL)
+    lfc <- tryCatch(de_data(), error = function(e) NULL)
+    if (is.null(lfc) || nrow(lfc) == 0) return(NULL)
+    lfc <- lfc[!duplicated(lfc$gene), c("gene", "lfc")]
+    setNames(lfc$lfc, lfc$gene)
+  })
+
+  freq_lfc_line <- function() {
+    if (!isTRUE(input$freq_color_lfc)) return("")
+    lfc <- freq_lfc()
+    if (is.null(lfc)) return("\nBar colour      : single colour (no differential analysis file loaded)")
+    gf <- gene_freq_data() %>% filter(pathway_count >= input$freq_min_pathways) %>%
+      slice_head(n = input$freq_top_n_genes)
+    n_match <- sum(gf$molecules %in% names(lfc))
+    paste0("\nBar colour      : log2 fold change (", input$de_col_lfc, "); ",
+           n_match, " of ", nrow(gf), " shown molecules found in the DE file",
+           if (n_match < nrow(gf)) " (others in grey)" else "")
+  }
+
   make_gene_freq_plot <- function() {
     req(gene_freq_data(), input$freq_min_pathways, input$freq_top_n_genes)
     
@@ -1331,13 +1370,28 @@ ipa_funct_filtered <- reactive({
       slice_head(n = input$freq_top_n_genes)
     
     validate(need(nrow(gf) > 0,
-                  "No genes meet the frequency cutoff. Lower the cutoff or expand pathway scope."))
+                  "No molecules meet the frequency cutoff. Lower the cutoff or expand pathway scope."))
     
-    ggplot(gf, aes(x = reorder(molecules, -pathway_count), y = pathway_count)) +
-      geom_col(fill = "steelblue", color = "white") +
+    lfc <- freq_lfc()
+    p <- ggplot(gf, aes(x = reorder(molecules, -pathway_count), y = pathway_count))
+    if (is.null(lfc)) {
+      p <- p + geom_col(fill = "steelblue", color = "white")
+    } else {
+      # Diverging scale centred at 0 with the volcano plot's Down / Up colours
+      up_col   <- if (is.null(input$volcano_up_color)   || input$volcano_up_color   == "") "firebrick" else input$volcano_up_color
+      down_col <- if (is.null(input$volcano_down_color) || input$volcano_down_color == "") "steelblue" else input$volcano_down_color
+      gf$lfc <- unname(lfc[gf$molecules])
+      lim <- max(abs(gf$lfc), na.rm = TRUE)
+      if (!is.finite(lim) || lim == 0) lim <- 1
+      p <- p + geom_col(data = gf, aes(fill = lfc), color = "white") +
+        scale_fill_gradient2(low = down_col, mid = "grey95", high = up_col, midpoint = 0,
+                             limits = c(-lim, lim), na.value = "grey60",
+                             name = "log2 fold\nchange")
+    }
+    p +
       labs(
-        title = paste0("Genes appearing in \u2265 ", input$freq_min_pathways, " pathways"),
-        x = "Gene",
+        title = paste0("Molecules appearing in \u2265 ", input$freq_min_pathways, " pathways"),
+        x = "Molecule",
         y = "Number of pathways"
       ) +
       theme_classic() +
@@ -1349,7 +1403,7 @@ ipa_funct_filtered <- reactive({
   }, height = function() input$freq_plot_height)
   
   dl_gene_freq_filename <- function() {
-    paste0("Gene_Frequency_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".png")
+    paste0("Molecule_Frequency_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".png")
   }
   dl_gene_freq_handler <- function(file) {
     ggsave(file, plot = make_gene_freq_plot(),
@@ -1622,7 +1676,7 @@ genes <- ipa_funct() %>%
     paste0(
       filter_line,
       "Plot type        : ", if (input$plot_type == "violin") "Violin plot" else "Boxplot", "\n",
-      "Selected protein : ", input$boxplot_protein,                    "\n",
+      "Selected molecule: ", input$boxplot_protein,                    "\n",
       "Samples found    : ", nrow(df),                                 "\n",
       "Groups           : ", paste(unique(df$group), collapse = ", "), "\n",
       "Values range     : ", round(min(df$value, na.rm = TRUE), 2),
@@ -1647,7 +1701,8 @@ genes <- ipa_funct() %>%
     p <- ggplot(df, aes(x = group, y = value, fill = group, colour = group))
     if (input$plot_type == "violin") {
       p <- p +
-        geom_violin(alpha = 0.5, trim = FALSE, width = 0.8) +
+        # trim = TRUE: the violin ends at the observed min / max (no tails below 0 for counts)
+        geom_violin(alpha = 0.5, trim = TRUE, width = 0.8) +
         geom_jitter(width = 0.12, size = 2.5, alpha = 0.85)
     } else {
       p <- p +
@@ -1658,7 +1713,7 @@ genes <- ipa_funct() %>%
       scale_fill_manual(values   = grp_colors) +
       scale_colour_manual(values = grp_colors) +
       labs(title    = paste0("Normalized Abundance / counts \u2014 ", protein, filter_subtitle),
-           x = NULL, y = "Normalized abundance / counts") +
+           x = input$col_group, y = "Normalized abundance / counts") +
       theme_bw(base_size = 13) +
       theme(legend.position    = "none",
             plot.title         = element_text(face = "bold", size = 14),
