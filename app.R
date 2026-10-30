@@ -1,5 +1,6 @@
 # app.R
 # Heatmaps, Bar/Bubble Plots, Chord Diagrams, Boxplot/Violin, Volcano and PCA plots visualization
+# v.1.4.1  — chord diagram no longer fails with many molecules (adaptive sector gaps)
 # v.1.4.0  — adds optional differential analysis file: volcano plot, PCA, DE heatmap
 # Copyright 2026 RGM
 # MIT License — see README.md for full license text
@@ -19,7 +20,7 @@ options(shiny.maxRequestSize = 500 * 1024^2)
 # ══════════════════════════════════════════════════════════════════════════════
 ui <- fluidPage(
   
-  tags$head(tags$title("EnrichViz v1.4.0")),
+  tags$head(tags$title("EnrichViz v1.4.1")),
   
   tags$style(HTML("
     html, body { height: 100%; overflow: hidden; }
@@ -1199,7 +1200,10 @@ ipa_funct_filtered <- reactive({
       "Molecules shown  : ", n_distinct(cd$molecules), "\n",
       "Total connections: ", nrow(cd),                 "\n",
       "Min appearances  : ", input$chord_min_freq,     "\n",
-      "Link curve depth : ", input$chord_inner_radius
+      "Link curve depth : ", input$chord_inner_radius,
+      if (n_distinct(cd$molecules) > 100)
+        "\nTip              : many molecules — raise 'Minimum appearances' for readable labels"
+      else ""
     )
   })
   
@@ -1218,7 +1222,10 @@ ipa_funct_filtered <- reactive({
     grid_colors <- c(setNames(path_cols, rownames(mat)), setNames(mol_cols, colnames(mat)))
     circos.clear()
     par(mar = c(2, 2, 3, 2))
-    circos.par("gap.after" = 2, "start.degree" = 90)
+    # A fixed 2-degree gap per sector fails when there are more than ~180 sectors
+    # (circlize: "gap.degree is too large"), so the gaps take at most 1/4 of the circle.
+    gap <- min(2, 90 / (n_path + n_mol))
+    circos.par("gap.after" = gap, "start.degree" = 90)
     chordDiagram(mat, h = input$chord_inner_radius, grid.col = grid_colors,
                  transparency = 0.4, annotationTrack = "grid",
                  preAllocateTracks = list(track.height = 0.08), directional = FALSE)

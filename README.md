@@ -1,4 +1,4 @@
-# EnrichViz Shiny App — v1.4.0
+# EnrichViz Shiny App — v1.4.1
 
 Interactive visualization of enriched pathways or biological functions from
 normalized proteomics, transcriptomics, or metabolomics data.
@@ -11,15 +11,16 @@ Licensed under the MIT License — see [License](#license) section below.
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [What's New in v1.4.0](#whats-new-in-v140)
-3. [What's New in v1.3.1](#whats-new-in-v131)
-4. [What's New in v1.3.0](#whats-new-in-v130)
-5. [What's New in v1.2.0](#whats-new-in-v120)
-6. [Requirements](#requirements)
-7. [Installation](#installation)
-8. [Input Files](#input-files)
-9. [App Structure](#app-structure)
-10. [Tabs and Features](#tabs-and-features)
+2. [What's New in v1.4.1](#whats-new-in-v141)
+3. [What's New in v1.4.0](#whats-new-in-v140)
+4. [What's New in v1.3.1](#whats-new-in-v131)
+5. [What's New in v1.3.0](#whats-new-in-v130)
+6. [What's New in v1.2.0](#whats-new-in-v120)
+7. [Requirements](#requirements)
+8. [Installation](#installation)
+9. [Input Files](#input-files)
+10. [App Structure](#app-structure)
+11. [Tabs and Features](#tabs-and-features)
    - [Tab 1 -- Bar Plot](#tab-1--bar-plot)
    - [Tab 2 -- Chord Diagram](#tab-2--chord-diagram)
    - [Tab 3 -- Gene Frequency](#tab-3--gene-frequency)
@@ -28,17 +29,17 @@ Licensed under the MIT License — see [License](#license) section below.
    - [Tab 6 -- Volcano](#tab-6--volcano)
    - [Tab 7 -- PCA](#tab-7--pca)
    - [Tab 8 -- DE Heatmap](#tab-8--de-heatmap)
-11. [Sidebar Controls Reference](#sidebar-controls-reference)
-12. [Download Outputs](#download-outputs)
-13. [Deployment](#deployment)
-14. [Tips and Troubleshooting](#tips-and-troubleshooting)
-15. [License](#license)
+12. [Sidebar Controls Reference](#sidebar-controls-reference)
+13. [Download Outputs](#download-outputs)
+14. [Deployment](#deployment)
+15. [Tips and Troubleshooting](#tips-and-troubleshooting)
+16. [License](#license)
 
 ---
 
 ## Overview
 
-EnrichViz (v1.4.0) is an R Shiny application for interactive exploration and
+EnrichViz (v1.4.1) is an R Shiny application for interactive exploration and
 visualization of pathway or functional enrichment results derived from
 normalized proteomics, transcriptomics, or metabolomics experiments.
 
@@ -77,7 +78,22 @@ from the sidebar or from within each tab.
 
 The page header reads *"Heatmap, Bar/Bubble, Chord, Gene Frequency,
 Box/Violin, Volcano, and PCA Plots of Pathway and Differential Analysis
-Results"*, and the browser tab title is *"EnrichViz v1.4.0"*.
+Results"*, and the browser tab title is *"EnrichViz v1.4.1"*.
+
+---
+
+## What's New in v1.4.1
+
+### Chord diagram with many molecules
+
+- **Fix:** the chord diagram no longer fails with *"Maybe your `gap.degree` is
+  too large…"* when many pathways and molecules are shown. The gap after each
+  sector was a fixed 2°, so more than ~180 sectors needed more than the full
+  circle (found with a GSEA result: 9 pathways and 187 molecules at the default
+  settings). Gaps now shrink as sectors are added and use at most a quarter of
+  the circle.
+- The Chord Diagram status line adds a tip when more than 100 molecules are
+  shown: raise **Minimum appearances** for readable labels.
 
 ---
 
@@ -435,7 +451,7 @@ install.packages(c("shiny", "tidyverse", "circlize", "pheatmap", "ggrepel"))
 ## Installation
 
 1. Clone or download this repository.
-2. Place `app.R` (v1.4.0) in a dedicated project folder.
+2. Place `app.R` (v1.4.1) in a dedicated project folder.
 3. Install all dependencies listed above.
 4. Launch the app from R or RStudio:
 
