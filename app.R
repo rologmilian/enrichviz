@@ -1,9 +1,10 @@
 # app.R
 # Heatmaps, Bar/Bubble Plots, Chord Diagrams, Boxplot/Violin, Volcano and PCA plots visualization
-# v.1.4.5  — bubble colours: diverging scale for signed columns (NES, z-score), numeric columns only, -log10 only for p-value columns
+# v.1.4.6  — American spelling throughout the interface (color, centered, gray, ...)
+# v.1.4.5  — bubble colors: diverging scale for signed columns (NES, z-score), numeric columns only, -log10 only for p-value columns
 # v.1.4.4  — chord labels can wrap; optional prefix removal (e.g. GOBP_) for displayed pathway names
 # v.1.4.3  — download width/height per plot and text-size scaling (ragg); "Molecules" wording in heatmap status
-# v.1.4.2  — Molecule Frequency (renamed) coloured by log2FC; chord label/colour fixes; box/violin x label, trimmed violins
+# v.1.4.2  — Molecule Frequency (renamed) colored by log2FC; chord label/color fixes; box/violin x label, trimmed violins
 # v.1.4.1  — chord diagram no longer fails with many molecules (adaptive sector gaps)
 # v.1.4.0  — adds optional differential analysis file: volcano plot, PCA, DE heatmap
 # Copyright 2026 RGM
@@ -38,7 +39,7 @@ dl_size_ui <- function(key) {
 # ══════════════════════════════════════════════════════════════════════════════
 ui <- fluidPage(
   
-  tags$head(tags$title("EnrichViz v1.4.5")),
+  tags$head(tags$title("EnrichViz v1.4.6")),
   
   tags$style(HTML("
     html, body { height: 100%; overflow: hidden; }
@@ -278,16 +279,16 @@ ui <- fluidPage(
         uiOutput("ui_bar_fill_col"),
         conditionalPanel(
           condition = "input.bar_fill_col == ''",
-          textInput("bar_color", "Bar fill colour (hex or name)", value = "steelblue")
+          textInput("bar_color", "Bar fill color (hex or name)", value = "steelblue")
         ),
         conditionalPanel(
           condition = "input.bar_fill_col != ''",
-          radioButtons("bar_fill_scale", "Colour scale",
-                       choices  = c("Auto" = "auto", "Gradient" = "gradient", "Diverging (centred at 0)" = "diverging"),
+          radioButtons("bar_fill_scale", "Color scale",
+                       choices  = c("Auto" = "auto", "Gradient" = "gradient", "Diverging (centered at 0)" = "diverging"),
                        selected = "auto", inline = TRUE),
           helpText("Auto: diverging (white = 0) when the column has negative values (e.g. z-score, NES),",
                    "otherwise a light-to-dark gradient. P-value columns are shown as -log10.",
-                   "Pathways with no value are grey."),
+                   "Pathways with no value are gray."),
           conditionalPanel(
             condition = "input.bar_fill_scale != 'diverging'",
             selectInput("bar_palette", "Gradient palette",
@@ -298,8 +299,8 @@ ui <- fluidPage(
           conditionalPanel(
             condition = "input.bar_fill_scale != 'gradient'",
             fluidRow(
-              column(6, textInput("bar_neg_color", "Negative colour", value = "steelblue")),
-              column(6, textInput("bar_pos_color", "Positive colour", value = "darkorange"))
+              column(6, textInput("bar_neg_color", "Negative color", value = "steelblue")),
+              column(6, textInput("bar_pos_color", "Positive color", value = "darkorange"))
             )
           )
         )
@@ -312,10 +313,10 @@ ui <- fluidPage(
         sliderInput("bubble_size_range",
                     label = "Bubble size range (min / max)",
                     min = 1, max = 30, value = c(3, 15), step = 1),
-        radioButtons("bubble_fill_scale", "Colour scale",
-                     choices  = c("Auto" = "auto", "Gradient" = "gradient", "Diverging (centred at 0)" = "diverging"),
+        radioButtons("bubble_fill_scale", "Color scale",
+                     choices  = c("Auto" = "auto", "Gradient" = "gradient", "Diverging (centered at 0)" = "diverging"),
                      selected = "auto", inline = TRUE),
-        helpText("Auto: diverging (white = 0) when the colour column has negative values (e.g. NES,",
+        helpText("Auto: diverging (white = 0) when the color column has negative values (e.g. NES,",
                  "z-score), otherwise a gradient. P-value columns are shown as -log10."),
         conditionalPanel(
           condition = "input.bubble_fill_scale != 'diverging'",
@@ -329,8 +330,8 @@ ui <- fluidPage(
         conditionalPanel(
           condition = "input.bubble_fill_scale != 'gradient'",
           fluidRow(
-            column(6, textInput("bubble_neg_color", "Negative colour", value = "steelblue")),
-            column(6, textInput("bubble_pos_color", "Positive colour", value = "darkorange"))
+            column(6, textInput("bubble_neg_color", "Negative color", value = "steelblue")),
+            column(6, textInput("bubble_pos_color", "Positive color", value = "darkorange"))
           )
         )
       ),
@@ -345,8 +346,8 @@ ui <- fluidPage(
       numericInput("chord_min_freq",        "Minimum times a molecule must appear", value = 2,    min = 1,   max = 20),
       helpText("Increase 'minimum appearances' to reduce clutter."),
       sliderInput("chord_inner_radius",     "Link curve depth",                     min = 0.2, max = 0.9, value = 0.4, step = 0.05),
-      helpText("How far the links bend toward the centre. Lower = links stay near the outer",
-               "ring (can look crowded); higher = links arc through the centre and are easier to follow.",
+      helpText("How far the links bend toward the center. Lower = links stay near the outer",
+               "ring (can look crowded); higher = links arc through the center and are easier to follow.",
                "This changes appearance only; it does not filter pathways or molecules."),
       numericInput("chord_label_size_path", "Pathway label font size",              value = 0.55, min = 0.3, max = 1.5, step = 0.05),
       numericInput("chord_label_size_mol",  "Molecule label font size",             value = 0.70, min = 0.3, max = 1.5, step = 0.05),
@@ -358,8 +359,8 @@ ui <- fluidPage(
       checkboxInput("chord_show_title", "Show plot title", value = TRUE),
       helpText("Truncate cuts long pathway names with '\u2026'; Wrap splits them over up to 3 lines",
                "(at '_', '-' or spaces). Wrapped labels need wide sectors; raise the plot size if they overlap."),
-      textInput("chord_pathway_color",      "Pathway sector colour (hex or name)",  value = "tomato"),
-      textInput("chord_molecule_color",     "Molecule sector colour (hex or name)", value = "steelblue"),
+      textInput("chord_pathway_color",      "Pathway sector color (hex or name)",  value = "tomato"),
+      textInput("chord_molecule_color",     "Molecule sector color (hex or name)", value = "steelblue"),
       numericInput("chord_plot_height",     "Chord plot height (px)",               value = 750,  min = 400, max = 2000),
       downloadButton("download_chord", "Download Chord Diagram (.png)"),
       
@@ -391,7 +392,7 @@ ui <- fluidPage(
                    "Frequency plot height (px)",
                    value = 600, min = 300, max = 2000),
       checkboxInput("freq_color_lfc",
-                    "Colour bars by log2 fold change (needs the differential analysis file)",
+                    "Color bars by log2 fold change (needs the differential analysis file)",
                     value = TRUE),
       downloadButton("download_gene_freq", "Download Frequency Plot (.png)"),
       
@@ -407,11 +408,11 @@ ui <- fluidPage(
       checkboxInput("heatmap_cluster_cols", "Cluster columns", value = FALSE),
       numericInput("heatmap_fontsize_row", "Row label font size (pt)", value = 8, min = 2, max = 20, step = 0.5),
       
-      # Colour scale limit
+      # Color scale limit
       sliderInput("heatmap_scale_limit",
-                  "Heatmap colour scale limit (± Z-score)",
+                  "Heatmap color scale limit (± Z-score)",
                   min = 1, max = 4, value = 2, step = 0.5),
-      helpText("Z-scores beyond \u00b1 this limit get the darkest colour. Lower = darker, higher-contrast",
+      helpText("Z-scores beyond \u00b1 this limit get the darkest color. Lower = darker, higher-contrast",
                "heatmap (small differences stand out); higher = lighter heatmap with more shades",
                "between extremes. Also used by the DE Heatmap."),
       
@@ -435,7 +436,7 @@ ui <- fluidPage(
       selectizeInput("boxplot_protein", "Search protein / gene / metabolite", choices = NULL,
                      options = list(placeholder = "Type to search...")),
       uiOutput("ui_boxplot_protein_msg"),
-helpText("Group colours are shared with Heatmap Settings above."),
+helpText("Group colors are shared with Heatmap Settings above."),
       numericInput("boxplot_height", "Plot height (px)", value = 500, min = 300, max = 2000),
       downloadButton("download_boxplot_sidebar", "Download Plot (.png)"),
       
@@ -460,8 +461,8 @@ helpText("Group colours are shared with Heatmap Settings above."),
       numericInput("volcano_top_labels", "Label top N significant features (by padj)", value = 10, min = 0, max = 200),
       textInput("volcano_label_genes", "Also label these features (comma-separated IDs)",
                 placeholder = "e.g. NPAS4, P04637, Glutamate"),
-      textInput("volcano_up_color",   "Up-regulated colour (hex or name)",   value = "firebrick"),
-      textInput("volcano_down_color", "Down-regulated colour (hex or name)", value = "steelblue"),
+      textInput("volcano_up_color",   "Up-regulated color (hex or name)",   value = "firebrick"),
+      textInput("volcano_down_color", "Down-regulated color (hex or name)", value = "steelblue"),
       numericInput("volcano_height", "Plot height (px)", value = 600, min = 300, max = 2000),
       downloadButton("download_volcano", "Download Volcano Plot (.png)"),
       
@@ -484,7 +485,7 @@ helpText("Group colours are shared with Heatmap Settings above."),
         column(6, numericInput("pca_y", "Y-axis PC", value = 2, min = 1, max = 20))
       ),
       checkboxInput("pca_show_labels", "Show sample labels", value = FALSE),
-      helpText("Point colours are shared with Heatmap Settings above."),
+      helpText("Point colors are shared with Heatmap Settings above."),
       numericInput("pca_height", "Plot height (px)", value = 600, min = 300, max = 2000),
       downloadButton("download_pca", "Download PCA Plot (.png)"),
       
@@ -496,7 +497,7 @@ helpText("Group colours are shared with Heatmap Settings above."),
                    choices  = c("Up & down" = "both", "Up only" = "up", "Down only" = "down"),
                    selected = "both", inline = TRUE),
       numericInput("de_heatmap_top_n", "Max features (top N by padj)", value = 50, min = 2, max = 2000),
-      helpText("Clustering toggles, colour-scale limit and group colours are shared with Heatmap Settings above."),
+      helpText("Clustering toggles, color-scale limit and group colors are shared with Heatmap Settings above."),
       numericInput("de_heatmap_height", "Plot height (px)", value = 800, min = 300, max = 3000),
       downloadButton("download_de_heatmap", "Download DE Heatmap (.png)")
     ),
@@ -918,7 +919,7 @@ ipa_funct_filtered <- reactive({
       helpText("\u26a0 Could not determine transformation. Check column selection.")
   })
   
-  # ── 6. Dynamic colour inputs: one per group (uses filtered annotation) ────
+  # ── 6. Dynamic color inputs: one per group (uses filtered annotation) ────
   output$ui_group_colors <- renderUI({
     req(annotation(), input$col_group)
     groups <- unique(as.character(annotation()[[input$col_group]]))
@@ -926,7 +927,7 @@ ipa_funct_filtered <- reactive({
                         "firebrick","gold","hotpink","cyan4","sienna","gray40")
     tagList(lapply(seq_along(groups), function(i) {
       textInput(inputId = paste0("color_group_", i),
-                label   = paste0("Colour \u2014 ", groups[i], " (hex or name)"),
+                label   = paste0("Color \u2014 ", groups[i], " (hex or name)"),
                 value   = default_colors[i])
     }))
   })
@@ -1008,12 +1009,12 @@ ipa_funct_filtered <- reactive({
   output$ui_bubble_color_col <- renderUI({
     req(ipa_funct())
     cols    <- colnames(ipa_funct())
-    # Only numeric columns can colour bubbles (text columns would give all-grey bubbles)
+    # Only numeric columns can color bubbles (text columns would give all-gray bubbles)
     num_cols <- cols[sapply(ipa_funct(), is_numeric_col)]
     default <- detect_pvalue_col(ipa_funct())
     if (!default %in% num_cols && length(num_cols) > 0) default <- num_cols[1]
     selectInput("bubble_color_col",
-                label   = paste0("Bubble COLOUR column (detected: '", default, "')"),
+                label   = paste0("Bubble COLOR column (detected: '", default, "')"),
                 choices = num_cols, selected = default)
   })
   
@@ -1057,25 +1058,25 @@ ipa_funct_filtered <- reactive({
     if (input$barplot_type == "bar") {
       fill <- bar_fill_info(barplot_data())
       if (!is.null(fill))
-        base <- paste0(base, "\nBar colour col   : ", fill$label, " (", fill$scale, ")",
+        base <- paste0(base, "\nBar color col   : ", fill$label, " (", fill$scale, ")",
                        if (fill$col == input$col_pvalue) " -- same as the x-axis" else "",
-                       if (any(is.na(fill$vals))) paste0("; ", sum(is.na(fill$vals)), " pathway(s) without a value shown in grey") else "")
+                       if (any(is.na(fill$vals))) paste0("; ", sum(is.na(fill$vals)), " pathway(s) without a value shown in gray") else "")
     }
     if (input$barplot_type == "bubble" &&
         !is.null(input$bubble_size_col) && !is.null(input$bubble_color_col)) {
       base <- paste0(base,
                      "\nBubble size col  : ", input$bubble_size_col,
-                     "\nBubble colour col: ", input$bubble_color_col)
+                     "\nBubble color col: ", input$bubble_color_col)
     }
     base
   })
   
-  # Optional numeric column used to colour the bars ("thermal" bar plot)
+  # Optional numeric column used to color the bars ("thermal" bar plot)
   output$ui_bar_fill_col <- renderUI({
     req(ipa_funct())
     num_cols <- colnames(ipa_funct())[sapply(ipa_funct(), is_numeric_col)]
-    selectInput("bar_fill_col", "Colour bars by",
-                choices  = c("None (single colour)" = "", num_cols),
+    selectInput("bar_fill_col", "Color bars by",
+                choices  = c("None (single color)" = "", num_cols),
                 selected = "")
   })
 
@@ -1088,7 +1089,7 @@ ipa_funct_filtered <- reactive({
     any(sapply(keys, function(k) grepl(k, nm, fixed = TRUE))) && !grepl("log", nm, fixed = TRUE)
   }
 
-  # Values, legend label and scale type for the bar colour column
+  # Values, legend label and scale type for the bar color column
   bar_fill_info <- function(df) {
     col <- input$bar_fill_col
     if (is.null(col) || col == "" || !col %in% colnames(df)) return(NULL)
@@ -1184,7 +1185,7 @@ ipa_funct_filtered <- reactive({
                  geom_col(fill = bar_color, width = 0.7) + bar_theme)
       }
       
-      # Colour bars by a numeric column
+      # Color bars by a numeric column
       df$.bar_fill <- fill$vals
       p <- ggplot(df, aes(x = .neg_log10, y = .category, fill = .bar_fill)) +
         geom_col(width = 0.7, colour = "grey40", linewidth = 0.2) + bar_theme
@@ -1319,7 +1320,7 @@ ipa_funct_filtered <- reactive({
     n_path <- nrow(mat); n_mol <- ncol(mat)
     pathway_color  <- if (is.null(input$chord_pathway_color)  || input$chord_pathway_color  == "") "tomato"    else input$chord_pathway_color
     molecule_color <- if (is.null(input$chord_molecule_color) || input$chord_molecule_color == "") "steelblue" else input$chord_molecule_color
-    # Shades from a darker to a lighter tone of each base colour (the old ramp to "lightyellow"
+    # Shades from a darker to a lighter tone of each base color (the old ramp to "lightyellow"
     # made the last sectors and their links nearly white)
     shade_ramp  <- function(col, n) {
       dark  <- colorRampPalette(c(col, "black"))(5)[2]
@@ -1441,7 +1442,7 @@ ipa_funct_filtered <- reactive({
     )
   })
   
-  # log2 fold changes from the DE file, used to colour the frequency bars (NULL if not available)
+  # log2 fold changes from the DE file, used to color the frequency bars (NULL if not available)
   freq_lfc <- reactive({
     if (!isTRUE(input$freq_color_lfc) || is.null(input$file_de)) return(NULL)
     lfc <- tryCatch(de_data(), error = function(e) NULL)
@@ -1453,13 +1454,13 @@ ipa_funct_filtered <- reactive({
   freq_lfc_line <- function() {
     if (!isTRUE(input$freq_color_lfc)) return("")
     lfc <- freq_lfc()
-    if (is.null(lfc)) return("\nBar colour      : single colour (no differential analysis file loaded)")
+    if (is.null(lfc)) return("\nBar color      : single color (no differential analysis file loaded)")
     gf <- gene_freq_data() %>% filter(pathway_count >= input$freq_min_pathways) %>%
       slice_head(n = input$freq_top_n_genes)
     n_match <- sum(gf$molecules %in% names(lfc))
-    paste0("\nBar colour      : log2 fold change (", input$de_col_lfc, "); ",
+    paste0("\nBar color      : log2 fold change (", input$de_col_lfc, "); ",
            n_match, " of ", nrow(gf), " shown molecules found in the DE file",
-           if (n_match < nrow(gf)) " (others in grey)" else "")
+           if (n_match < nrow(gf)) " (others in gray)" else "")
   }
 
   make_gene_freq_plot <- function() {
@@ -1477,7 +1478,7 @@ ipa_funct_filtered <- reactive({
     if (is.null(lfc)) {
       p <- p + geom_col(fill = "steelblue", color = "white")
     } else {
-      # Diverging scale centred at 0 with the volcano plot's Down / Up colours
+      # Diverging scale centered at 0 with the volcano plot's Down / Up colors
       up_col   <- if (is.null(input$volcano_up_color)   || input$volcano_up_color   == "") "firebrick" else input$volcano_up_color
       down_col <- if (is.null(input$volcano_down_color) || input$volcano_down_color == "") "steelblue" else input$volcano_down_color
       gf$lfc <- unname(lfc[gf$molecules])
@@ -1699,7 +1700,7 @@ genes <- ipa_funct() %>%
   # Server-side selectize: only matches for the typed text are sent to the browser
   observe({
     mols <- tryCatch(boxplot_molecules(), error = function(e) {
-      if (inherits(e, "shiny.silent.error")) stop(e)   # keep normal req() behaviour
+      if (inherits(e, "shiny.silent.error")) stop(e)   # keep normal req() behavior
       character(0)                                     # bad column choice -> empty list, no crash
     })
     current <- isolate(input$boxplot_protein)
@@ -2005,7 +2006,7 @@ genes <- ipa_funct() %>%
       "Samples          : ", nrow(r$pca$x), "\n",
       "Features used    : ", r$n_genes, " (", set_label, ")\n",
       "Transformation   : ", if (isTRUE(input$de_log_transform)) "log2(x + 1)" else "none",
-      if (isTRUE(input$pca_scale)) ", scaled to unit variance" else ", centred only", "\n",
+      if (isTRUE(input$pca_scale)) ", scaled to unit variance" else ", centered only", "\n",
       "Variance (PC1-5) : ", paste0(round(head(r$var_pct, 5), 1), "%", collapse = ", ")
     )
   })

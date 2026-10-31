@@ -1,4 +1,4 @@
-# EnrichViz Shiny App — v1.4.5
+# EnrichViz Shiny App — v1.4.6
 
 Interactive visualization of enriched pathways or biological functions from
 normalized proteomics, transcriptomics, or metabolomics data.
@@ -11,20 +11,21 @@ Licensed under the MIT License — see [License](#license) section below.
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [What's New in v1.4.5](#whats-new-in-v145)
-3. [What's New in v1.4.4](#whats-new-in-v144)
-4. [What's New in v1.4.3](#whats-new-in-v143)
-5. [What's New in v1.4.2](#whats-new-in-v142)
-6. [What's New in v1.4.1](#whats-new-in-v141)
-7. [What's New in v1.4.0](#whats-new-in-v140)
-8. [What's New in v1.3.1](#whats-new-in-v131)
-9. [What's New in v1.3.0](#whats-new-in-v130)
-10. [What's New in v1.2.0](#whats-new-in-v120)
-11. [Requirements](#requirements)
-12. [Installation](#installation)
-13. [Input Files](#input-files)
-14. [App Structure](#app-structure)
-15. [Tabs and Features](#tabs-and-features)
+2. [What's New in v1.4.6](#whats-new-in-v146)
+3. [What's New in v1.4.5](#whats-new-in-v145)
+4. [What's New in v1.4.4](#whats-new-in-v144)
+5. [What's New in v1.4.3](#whats-new-in-v143)
+6. [What's New in v1.4.2](#whats-new-in-v142)
+7. [What's New in v1.4.1](#whats-new-in-v141)
+8. [What's New in v1.4.0](#whats-new-in-v140)
+9. [What's New in v1.3.1](#whats-new-in-v131)
+10. [What's New in v1.3.0](#whats-new-in-v130)
+11. [What's New in v1.2.0](#whats-new-in-v120)
+12. [Requirements](#requirements)
+13. [Installation](#installation)
+14. [Input Files](#input-files)
+15. [App Structure](#app-structure)
+16. [Tabs and Features](#tabs-and-features)
    - [Tab 1 -- Bar Plot](#tab-1--bar-plot)
    - [Tab 2 -- Chord Diagram](#tab-2--chord-diagram)
    - [Tab 3 -- Molecule Frequency](#tab-3--molecule-frequency)
@@ -33,17 +34,17 @@ Licensed under the MIT License — see [License](#license) section below.
    - [Tab 6 -- Volcano](#tab-6--volcano)
    - [Tab 7 -- PCA](#tab-7--pca)
    - [Tab 8 -- DE Heatmap](#tab-8--de-heatmap)
-16. [Sidebar Controls Reference](#sidebar-controls-reference)
-17. [Download Outputs](#download-outputs)
-18. [Deployment](#deployment)
-19. [Tips and Troubleshooting](#tips-and-troubleshooting)
-20. [License](#license)
+17. [Sidebar Controls Reference](#sidebar-controls-reference)
+18. [Download Outputs](#download-outputs)
+19. [Deployment](#deployment)
+20. [Tips and Troubleshooting](#tips-and-troubleshooting)
+21. [License](#license)
 
 ---
 
 ## Overview
 
-EnrichViz (v1.4.5) is an R Shiny application for interactive exploration and
+EnrichViz (v1.4.6) is an R Shiny application for interactive exploration and
 visualization of pathway or functional enrichment results derived from
 normalized proteomics, transcriptomics, or metabolomics experiments.
 
@@ -65,13 +66,13 @@ coordinated views:
 - A **Molecule Frequency Plot** displaying how many pathways each gene,
   protein or metabolite appears in, with controls to restrict the analysis to
   all pathways or only the top N most significant ones, and bars optionally
-  coloured by log2 fold change from the differential analysis file.
+  colored by log2 fold change from the differential analysis file.
 - A **Heatmap** of molecule-level abundances grouped by pathway or function.
 - A **Boxplot** (optionally rendered as a violin plot) displaying the
   distribution of abundance values for a selected molecule across groups.
-- A **Volcano Plot** of the differential analysis results, coloured by
+- A **Volcano Plot** of the differential analysis results, colored by
   fold-change and adjusted p-value cutoffs *(requires the optional DE file)*.
-- A **PCA** plot of samples, coloured by group.
+- A **PCA** plot of samples, colored by group.
 - A **DE Heatmap** of the features passing the fold-change and adjusted
   p-value cutoffs *(requires the optional DE file)*.
 
@@ -83,21 +84,28 @@ from the sidebar or from within each tab.
 
 The page header reads *"Heatmap, Bar/Bubble, Chord, Molecule Frequency,
 Box/Violin, Volcano, and PCA Plots of Pathway and Differential Analysis
-Results"*, and the browser tab title is *"EnrichViz v1.4.5"*.
+Results"*, and the browser tab title is *"EnrichViz v1.4.6"*.
+
+---
+
+## What's New in v1.4.6
+
+- American spelling throughout the interface, status lines and this README
+  (e.g. "color", "centered", "gray"). Input and output IDs are unchanged.
 
 ---
 
 ## What's New in v1.4.5
 
-### Bubble colours for signed columns
+### Bubble colors for signed columns
 
-- The bubble colour column now has the same **Colour scale** choice as bar
-  colouring: **Auto** (default) uses a diverging scale centred at 0 (white = 0;
-  **Negative / Positive colour**, defaults `steelblue` / `darkorange`) when the
+- The bubble color column now has the same **Color scale** choice as bar
+  coloring: **Auto** (default) uses a diverging scale centered at 0 (white = 0;
+  **Negative / Positive color**, defaults `steelblue` / `darkorange`) when the
   column has negative values, e.g. NES (GSEA) or z-score (IPA), and the
   selected gradient palette otherwise; **Gradient** or **Diverging** can be forced.
-- The bubble colour list shows only numeric columns.
-- A colour column is shown as -log10 only when it is a p-value-type column with
+- The bubble color list shows only numeric columns.
+- A color column is shown as -log10 only when it is a p-value-type column with
   values between 0 and 1. Before, any 0-1 column (e.g. IPA **Ratio**) was
   transformed.
 
@@ -155,32 +163,32 @@ Example: the panels of the manuscript's transcriptomics figure were exported at
 
 ## What's New in v1.4.2
 
-### Molecule Frequency (renamed from Gene Frequency), coloured by fold change
+### Molecule Frequency (renamed from Gene Frequency), colored by fold change
 
 - The **Gene Frequency** tab is renamed **Molecule Frequency**, since rows can
   be genes, proteins or metabolites. The plot title, x-axis ("Molecule"),
   sidebar labels, status line and download file name
   (`Molecule_Frequency_YYYYMMDD_HHMMSS.png`) follow. Internal input and output
   IDs (`freq_*`, `gene_freq_plot`) are unchanged.
-- **Colour bars by log2 fold change** (new checkbox, on by default): when the
-  optional differential analysis file is loaded, each bar is coloured by the
-  molecule's log2 fold change on a diverging scale centred at 0, using the
-  Volcano plot's Down / Up colours. Molecules not found in the DE file are
-  grey, and the status line reports how many of the shown molecules were
-  matched. Without a DE file, bars keep a single colour.
+- **Color bars by log2 fold change** (new checkbox, on by default): when the
+  optional differential analysis file is loaded, each bar is colored by the
+  molecule's log2 fold change on a diverging scale centered at 0, using the
+  Volcano plot's Down / Up colors. Molecules not found in the DE file are
+  gray, and the status line reports how many of the shown molecules were
+  matched. Without a DE file, bars keep a single color.
 
-### Chord diagram labels and colours
+### Chord diagram labels and colors
 
 - Long pathway names are cut to **Max characters in pathway labels** (new
   input, default 35) and end in `…`, and the plot leaves more space around the
   circle, so labels are no longer clipped at the edges.
-- Sector colours now range from a darker to a lighter shade of the chosen
-  colour. Previously they faded to light yellow, so the last pathways and their
+- Sector colors now range from a darker to a lighter shade of the chosen
+  color. Previously they faded to light yellow, so the last pathways and their
   links were nearly white.
 
 ### Box / violin plots
 
-- The x-axis is labelled with the group column name.
+- The x-axis is labeled with the group column name.
 - Violins end at the lowest and highest observed values (`trim = TRUE`), so
   count data no longer show density tails below zero.
 - The status line says "Selected molecule" (was "Selected protein").
@@ -215,14 +223,14 @@ The app works with genes, proteins or metabolites ("features").
   (default |log2FC| >= 1, padj < 0.05); live Up / Down count; and a
   **log2(x + 1)** toggle for raw-scale data (untick for already-logged
   proteomics or metabolomics data).
-- **Volcano** tab: Up / Down / not-significant colouring, cutoff lines,
+- **Volcano** tab: Up / Down / not-significant coloring, cutoff lines,
   top-N and user-typed labels (non-overlapping via `ggrepel`).
 - **PCA** tab: all features, top N most variable, or DE-significant
-  features; optional scaling; choice of PCs; group colours; optional sample
+  features; optional scaling; choice of PCs; group colors; optional sample
   labels. Works without the DE file.
 - **DE Heatmap** tab: Z-scored heatmap of significant features (up, down or
   both; top N by padj), sharing the pathway heatmap's clustering, scale and
-  colour settings.
+  color settings.
 
 See [Tab 6](#tab-6--volcano), [Tab 7](#tab-7--pca) and
 [Tab 8](#tab-8--de-heatmap) for details.
@@ -250,7 +258,7 @@ browser. Both keep the current selection when the list changes.
 - **Status lines** for the Bar Plot and Gene Frequency tabs now report
   keyword-filtered pathway counts. The Gene Frequency status notes that the
   metadata filter does not apply to it.
-- **Enrichment file detection** now recognises exports from IPA,
+- **Enrichment file detection** now recognizes exports from IPA,
   clusterProfiler, g:Profiler, Enrichr, DAVID and fgsea: the pathway-name,
   member and significance columns (adjusted p-values preferred) and the
   member separator are chosen automatically, and lines above the header
@@ -262,8 +270,8 @@ browser. Both keep the current selection when the list changes.
 - **Heatmaps** hide sample names when there are more than 60 samples.
 - **Long pathway names** on the bar and bubble plots are wrapped (or
   truncated) so a single very long name no longer squeezes the plot.
-- **Bar Plot colouring:** bars can be coloured by any numeric column
-  (z-score, NES, set size, FDR, ...), with a diverging scale centred at 0 for
+- **Bar Plot coloring:** bars can be colored by any numeric column
+  (z-score, NES, set size, FDR, ...), with a diverging scale centered at 0 for
   signed values and a gradient otherwise.
 - **Molecule keyword filter** accepts `*` wildcards (`SYN*` matches `SYN1`,
   `SYN3`, ...).
@@ -273,7 +281,7 @@ browser. Both keep the current selection when the list changes.
 - **Chord Diagram:** "Inner circle size" is renamed **Link curve depth**, with
   help text explaining that it only changes how links curve (it is not a
   filter). Range is now 0.2-0.9.
-- **Heatmap colour scale limit** has help text explaining that lower values
+- **Heatmap color scale limit** has help text explaining that lower values
   darken the heatmap and higher values lighten it.
 - The sidebar help under **Select Pathway / Functions -- Column** now
   describes the automatic column detection.
@@ -326,7 +334,7 @@ simultaneously.
 - If **both** boxes contain text, they combine with **AND logic**: a pathway
   must satisfy both conditions to be retained.
 - Leaving a box blank imposes no constraint from that box.
-- Leaving **both** boxes blank restores the full pathway table — behaviour is
+- Leaving **both** boxes blank restores the full pathway table — behavior is
   identical to previous versions.
 
 #### Examples
@@ -539,7 +547,7 @@ To then repeat the comparison for females, change the checked value to
 | ggrepel | >= 0.9.0 (non-overlapping labels on volcano and PCA plots) |
 | ragg | >= 1.2.0 (PNG downloads with adjustable text size; new in v1.4.3) |
 
-The app loads these six packages with `library()`. Colour palettes
+The app loads these six packages with `library()`. Color palettes
 (viridis, ColorBrewer) are provided through ggplot2's own dependencies, so
 no extra palette packages need to be installed.
 
@@ -557,7 +565,7 @@ install.packages(c("shiny", "tidyverse", "circlize", "pheatmap", "ggrepel", "rag
 ## Installation
 
 1. Clone or download this repository.
-2. Place `app.R` (v1.4.5) in a dedicated project folder.
+2. Place `app.R` (v1.4.6) in a dedicated project folder.
 3. Install all dependencies listed above.
 4. Launch the app from R or RStudio:
 
@@ -598,7 +606,7 @@ A sample-level table where:
 
 - One column contains **sample IDs** matching the column names in the
   normalized data file.
-- One column contains the **group or condition** label used for colouring
+- One column contains the **group or condition** label used for coloring
   plots.
 - **Additional columns** (e.g. `sex`, `age`, `batch`, `tissue`) are fully
   supported and can be used as **metadata slice filters** (introduced in v1.2.0).
@@ -644,7 +652,7 @@ Oxidative_Phospho  0.003    ProtB,ProtD
 
 #### Supported enrichment tools
 
-Exports from these tools are recognised without changing any setting
+Exports from these tools are recognized without changing any setting
 (the file must be saved as `.csv`):
 
 | Tool | Pathway name | Members (separator) | Significance column used |
@@ -714,7 +722,7 @@ The app uses a standard Shiny `fluidPage` layout with a fixed left sidebar
 (`sidebarPanel`, width = 3) and a fixed main content area (`mainPanel`,
 width = 9). Both panels scroll independently.
 
-A fixed blurb bar below the title summarises the three required input files.
+A fixed blurb bar below the title summarizes the three required input files.
 
 The main panel contains a `tabsetPanel` with **eight tabs**:
 
@@ -729,7 +737,7 @@ The main panel contains a `tabsetPanel` with **eight tabs**:
 | 7 | PCA |
 | 8 | DE Heatmap |
 
-The sidebar is divided into clearly labelled sections:
+The sidebar is divided into clearly labeled sections:
 
 - **Upload Data Files** -- three required `fileInput` widgets plus one
   optional widget for differential analysis results.
@@ -741,17 +749,17 @@ The sidebar is divided into clearly labelled sections:
   column selector.
 - **Sample Annotation -- Column** -- sample ID and group column selectors.
 - **Bar / Bubble Plot Settings** -- plot type, p-value column, top N,
-  colour / palette controls, and optional colouring of bars by a numeric
+  color / palette controls, and optional coloring of bars by a numeric
   column.
 - **Keyword Filter — Pathways** *(new in v1.3.1)* -- two independent text
   inputs for filtering by pathway name and by molecule/gene symbol; live
   count badge; affects all downstream plots.
 - **Chord Diagram Settings** -- top N, minimum frequency, link curve depth,
-  label sizes, maximum pathway-label length, sector colours.
+  label sizes, maximum pathway-label length, sector colors.
 - **Molecule Frequency Plot Settings** *(new in v1.3.0; renamed in v1.4.2)* --
   pathway scope toggle, optional top N pathways, minimum pathway count, top N
-  molecules, plot height, colour by log2 fold change, download button.
-- **Heatmap Settings** -- category selector, per-group colour inputs, height,
+  molecules, plot height, color by log2 fold change, download button.
+- **Heatmap Settings** -- category selector, per-group color inputs, height,
   single-heatmap download, and the batch download of keyword-filtered
   heatmaps,
   download buttons.
@@ -760,7 +768,7 @@ The sidebar is divided into clearly labelled sections:
 - **Differential Analysis** (green panel) -- DE column selectors,
   fold-change and adjusted p-value cutoffs, up/down count badge, and the
   log2(x + 1) toggle used by PCA and the DE heatmap.
-- **Volcano Plot Settings** -- labels, colours, height, download button.
+- **Volcano Plot Settings** -- labels, colors, height, download button.
 - **PCA Settings** -- feature set, scaling, PCs to plot, sample labels,
   height, download button.
 - **DE Heatmap Settings** -- direction, maximum features, height, download
@@ -790,16 +798,16 @@ Displays pathways or functions ranked by a chosen p-value metric.
 | Auto-transform indicator | `helpText` confirms whether -log10 will be applied |
 | Top N selector | Cap the number of displayed pathways (`numericInput`, default 20) |
 | Long pathway names | **Wrap** (default) splits names longer than *Max characters* (default 50) over up to 3 lines, breaking at spaces, `_` or `-` so GSEA-style names (`GOBP_..._...`) wrap too; **Truncate** cuts them to one line ending in `…`; **Show in full** leaves them unchanged. Applies to bar and bubble plots and their downloads. Only the axis labels change -- pathways whose shortened names coincide are still drawn as separate bars |
-| Colour bars by | Optional numeric column used to colour the bars, like the bubble plot (`selectInput`, default **None**). Useful for z-score (IPA), NES (GSEA), set size / count, or an adjusted p-value when the x-axis shows something else |
-| Colour scale | **Auto** (default): diverging blue-white-orange centred at 0 (white = 0) when the column contains negative values, e.g. z-score or NES; otherwise a light-to-dark gradient. **Gradient** or **Diverging** can be forced (`radioButtons`) |
-| Gradient palette / Negative & positive colours | Palette for gradients (`selectInput`, default `Blues`); end colours for diverging scales (`textInput`, defaults `steelblue` / `darkorange`) |
-| P-value colour columns | Columns named like p-values / FDR / q-values with values in 0-1 are shown as -log10, so darker = more significant |
-| Missing values | Pathways without a value in the colour column are drawn in grey |
-| Bar colour | Single fill colour used when **Colour bars by** = None (`textInput`, default `steelblue`) |
+| Color bars by | Optional numeric column used to color the bars, like the bubble plot (`selectInput`, default **None**). Useful for z-score (IPA), NES (GSEA), set size / count, or an adjusted p-value when the x-axis shows something else |
+| Color scale | **Auto** (default): diverging blue-white-orange centered at 0 (white = 0) when the column contains negative values, e.g. z-score or NES; otherwise a light-to-dark gradient. **Gradient** or **Diverging** can be forced (`radioButtons`) |
+| Gradient palette / Negative & positive colors | Palette for gradients (`selectInput`, default `Blues`); end colors for diverging scales (`textInput`, defaults `steelblue` / `darkorange`) |
+| P-value color columns | Columns named like p-values / FDR / q-values with values in 0-1 are shown as -log10, so darker = more significant |
+| Missing values | Pathways without a value in the color column are drawn in gray |
+| Bar color | Single fill color used when **Color bars by** = None (`textInput`, default `steelblue`) |
 | Bubble size column | Column mapped to bubble area (`selectInput`) |
-| Bubble colour column | Numeric column mapped to bubble fill (`selectInput`); colour scale Auto / Gradient / Diverging as for bars (diverging centred at 0 for signed columns such as NES or z-score) *(v1.4.5)* |
+| Bubble color column | Numeric column mapped to bubble fill (`selectInput`); color scale Auto / Gradient / Diverging as for bars (diverging centered at 0 for signed columns such as NES or z-score) *(v1.4.5)* |
 | Bubble size range | Min/max point size (`sliderInput`, default 3-15) |
-| Bubble palette | Sequential or diverging colour palette (`selectInput`) |
+| Bubble palette | Sequential or diverging color palette (`selectInput`) |
 | Plot height | Adjustable rendering height in pixels (`numericInput`, default 600) |
 | Keyword filter | Pathway name and/or molecule filter applied upstream via `ipa_funct_filtered()` *(new in v1.3.1)* |
 | Status line | Reports active metadata filter, plot type, p-value column, transformation applied, total and displayed pathway counts |
@@ -813,12 +821,12 @@ the top N pathways or functions.
 |---|---|
 | Top N pathways | Number of highest-ranked pathways to include (`numericInput`, default 10) |
 | Minimum frequency | Show only molecules appearing in at least N pathways (`numericInput`, default 2) |
-| Link curve depth | How far the links bend toward the centre (`sliderInput`, 0.2-0.9, default 0.4). Lower values keep links near the outer ring, which can look crowded; higher values arc links through the centre so they are easier to follow. Appearance only -- it does not filter pathways or molecules. (Previously labelled "Inner circle size") |
+| Link curve depth | How far the links bend toward the center (`sliderInput`, 0.2-0.9, default 0.4). Lower values keep links near the outer ring, which can look crowded; higher values arc links through the center so they are easier to follow. Appearance only -- it does not filter pathways or molecules. (Previously labeled "Inner circle size") |
 | Pathway label size | Font size for pathway sector labels (`numericInput`, default 0.55) |
 | Molecule label size | Font size for molecule labels (`numericInput`, default 0.70) |
 | Max characters in pathway labels | Longer pathway names are cut and end in `…` so they fit around the circle (`numericInput`, default 35) *(new in v1.4.2)* |
-| Pathway sector colour | Hex or named colour for pathway arcs (`textInput`, default `tomato`); sectors are shaded from a darker to a lighter tone of it |
-| Molecule sector colour | Hex or named colour for molecule arcs (`textInput`, default `steelblue`) |
+| Pathway sector color | Hex or named color for pathway arcs (`textInput`, default `tomato`); sectors are shaded from a darker to a lighter tone of it |
+| Molecule sector color | Hex or named color for molecule arcs (`textInput`, default `steelblue`) |
 | Plot height | Adjustable rendering height in pixels (`numericInput`, default 750) |
 | Keyword filter | Pathway name and/or molecule filter applied upstream via `ipa_funct_filtered()` *(new in v1.3.1)* |
 | Status line | Reports active metadata filter, pathway count, molecule count, total connections, minimum frequency, and link curve depth; suggests raising the minimum frequency when more than 100 molecules are shown |
@@ -836,7 +844,7 @@ by many biological processes. Renamed from "Gene Frequency" in v1.4.2.
 | Top N pathways | Number of top-ranked pathways to use when scope = Top N (`numericInput`, default 20; only visible when scope = Top N) |
 | Minimum pathway count | Only display molecules appearing in at least this many pathways (`numericInput`, default 5) |
 | Top N molecules | Maximum number of molecules shown after filtering (`numericInput`, default 50) |
-| Colour by log2 fold change | When the DE file is loaded, bars are coloured by log2 fold change on a diverging scale centred at 0 (Volcano Down / Up colours); molecules not in the DE file are grey (`checkboxInput`, default on) *(new in v1.4.2)* |
+| Color by log2 fold change | When the DE file is loaded, bars are colored by log2 fold change on a diverging scale centered at 0 (Volcano Down / Up colors); molecules not in the DE file are gray (`checkboxInput`, default on) *(new in v1.4.2)* |
 | Plot height | Adjustable rendering height in pixels (`numericInput`, default 600) |
 | Keyword filter | Pathway name and/or molecule filter applied upstream via `ipa_funct_filtered()` *(new in v1.3.1)* |
 | Status line | Reports active pathway scope, total molecule count, molecules meeting the minimum threshold, number displayed, and how many shown molecules were matched in the DE file |
@@ -844,17 +852,17 @@ by many biological processes. Renamed from "Gene Frequency" in v1.4.2.
 
 ### Tab 4 -- Heatmap
 
-Renders a clustered heatmap (via `pheatmap`) of Z-score normalised molecule
+Renders a clustered heatmap (via `pheatmap`) of Z-score normalized molecule
 abundances for a selected pathway or function, using only the filtered samples.
 User can select clustering or not for the columns/samples.
 
 | Feature | Details |
 |---|---|
-| Category selector | Choose one pathway or function to visualise (`selectizeInput` with type-ahead search); list is restricted to keyword-filtered pathways *(new in v1.3.1)*. The label shows how many pathways are available, and the current choice is kept when the filter changes if it is still in the list |
-| Per-group colours | One `textInput` per group (hex or name) for the column annotation bar |
+| Category selector | Choose one pathway or function to visualize (`selectizeInput` with type-ahead search); list is restricted to keyword-filtered pathways *(new in v1.3.1)*. The label shows how many pathways are available, and the current choice is kept when the filter changes if it is still in the list |
+| Per-group colors | One `textInput` per group (hex or name) for the column annotation bar |
 | Row clustering | Hierarchical clustering of molecules (`checkboxInput`, default on) |
 | Column clustering | Optional (`checkboxInput`, default off); when off, columns are ordered by group for comparability |
-| Colour scale limit | Symmetric ± Z-score limit for the colour scale (`sliderInput`, 1-4, default 2). Z-scores beyond the limit get the darkest colour: **lower** values give a darker, higher-contrast heatmap where small differences stand out; **higher** values give a lighter heatmap with more shades between extremes. Shared with the DE Heatmap |
+| Color scale limit | Symmetric ± Z-score limit for the color scale (`sliderInput`, 1-4, default 2). Z-scores beyond the limit get the darkest color: **lower** values give a darker, higher-contrast heatmap where small differences stand out; **higher** values give a lighter heatmap with more shades between extremes. Shared with the DE Heatmap |
 | Row name display | Shown when <= 100 molecules are matched |
 | Column name display | Sample names shown when <= 60 samples (hidden above that to stay readable) |
 | Z-score scaling | Applied row-wise before rendering |
@@ -872,9 +880,9 @@ molecule across sample groups, using only the filtered samples.
 |---|---|
 | Molecule selector | `selectizeInput` with type-ahead search; lists all molecules present in both the enrichment file and the normalized data, with the matched count in the label |
 | Plot type toggle | Switch between boxplot and violin plot (`radioButtons`); violins end at the observed minimum and maximum (`trim = TRUE`) |
-| Axes | x-axis labelled with the group column name; y-axis "Normalized abundance / counts" |
+| Axes | x-axis labeled with the group column name; y-axis "Normalized abundance / counts" |
 | Data points overlay | Individual sample points overlaid via `geom_jitter` (always on) |
-| Colour by group | Per-group colours shared with the Heatmap Settings section |
+| Color by group | Per-group colors shared with the Heatmap Settings section |
 | Plot subtitle | Shows the active metadata filter when one is set |
 | Plot height | Adjustable rendering height in pixels (`numericInput`, default 500) |
 | Status line | Reports active metadata filter, plot type, selected molecule, sample count, groups, and value range |
@@ -887,10 +895,10 @@ optional DE file.
 
 | Feature | Details |
 |---|---|
-| Cutoffs | Features with \|log2FC\| >= cutoff **and** padj < cutoff are coloured Up / Down; all others are grey. Dashed lines mark the cutoffs |
+| Cutoffs | Features with \|log2FC\| >= cutoff **and** padj < cutoff are colored Up / Down; all others are gray. Dashed lines mark the cutoffs |
 | Legend | Shows the number of Up and Down features |
 | Labels | Top N significant features by padj (`numericInput`, default 10) plus any IDs typed in the label box (case-insensitive); non-overlapping via `ggrepel` |
-| Colours | Up and Down colours (`textInput`, defaults `firebrick` / `steelblue`) |
+| Colors | Up and Down colors (`textInput`, defaults `firebrick` / `steelblue`) |
 | padj = 0 | Capped at the smallest representable number so the point is plotted instead of being lost as infinite |
 | Plot height | Adjustable (`numericInput`, default 600) |
 | Status line | Reports the DE columns used, cutoffs, number of features tested (and rows removed for missing padj), and Up / Down counts |
@@ -908,9 +916,9 @@ DE file unless the DE-significant feature set is chosen.
 |---|---|
 | Features used | All features, the top N most variable features (default 500), or only DE-significant features passing the cutoffs (`radioButtons`) |
 | log2(x + 1) | Applied when the shared toggle in the Differential Analysis panel is on (default). Turn it off for data that are already log-transformed, as is common for proteomics and metabolomics. The app stops with a message if the data contain negative values while the toggle is on |
-| Scaling | Features are always centred; optionally scaled to unit variance (`checkboxInput`, default off) |
+| Scaling | Features are always centered; optionally scaled to unit variance (`checkboxInput`, default off) |
 | PCs | Choose which components go on the x and y axes (default PC1 vs PC2); axis labels show % variance explained |
-| Colours | Points coloured by the group column, using the per-group colours from Heatmap Settings |
+| Colors | Points colored by the group column, using the per-group colors from Heatmap Settings |
 | Sample labels | Optional, non-overlapping via `ggrepel` (`checkboxInput`, default off) |
 | Plot height | Adjustable (`numericInput`, default 600) |
 | Status line | Reports active metadata filter, samples, features used, transformation, and variance explained by PC1-PC5 |
@@ -929,7 +937,7 @@ optional DE file.
 | Direction | Up & down, Up only, or Down only (`radioButtons`) |
 | Max features | The top N significant features by padj that are present in the normalized data (`numericInput`, default 50) |
 | Values | log2(x + 1) (if the shared toggle is on), then row Z-score |
-| Shared settings | Row/column clustering, colour-scale limit and group colours come from Heatmap Settings |
+| Shared settings | Row/column clustering, color-scale limit and group colors come from Heatmap Settings |
 | Samples | Only samples retained by the metadata filter |
 | Plot height | Adjustable (`numericInput`, default 800) |
 | Status line | Reports active metadata filter, cutoffs, direction, number of significant features, number shown, samples used, and transformation |
@@ -986,15 +994,15 @@ optional DE file.
 | `bar_top_n` | `numericInput` | Show top N pathways | `20` |
 | `label_mode` | `selectInput` | Long pathway names (Wrap / Truncate / Show in full) | `wrap` |
 | `label_width` | `numericInput` | Max characters (per line when wrapping) | `50` |
-| `bar_fill_col` | `selectInput` | Colour bars by | None (single colour); lists numeric columns |
-| `bar_fill_scale` | `radioButtons` | Colour scale | `auto` |
+| `bar_fill_col` | `selectInput` | Color bars by | None (single color); lists numeric columns |
+| `bar_fill_scale` | `radioButtons` | Color scale | `auto` |
 | `bar_palette` | `selectInput` | Gradient palette | `Blues` |
-| `bar_neg_color` / `bar_pos_color` | `textInput` | Negative / Positive colour (diverging) | `steelblue` / `darkorange` |
-| `bar_color` | `textInput` | Bar fill colour (when not colouring by a column) | `steelblue` |
+| `bar_neg_color` / `bar_pos_color` | `textInput` | Negative / Positive color (diverging) | `steelblue` / `darkorange` |
+| `bar_color` | `textInput` | Bar fill color (when not coloring by a column) | `steelblue` |
 | `bubble_size_col` | `selectInput` | Bubble SIZE column | Numeric column matching a keyword (`count`, `size`, `ratio`, ...) |
-| `bubble_color_col` | `selectInput` | Bubble COLOUR column | Same as the detected significance column |
+| `bubble_color_col` | `selectInput` | Bubble COLOR column | Same as the detected significance column |
 | `bubble_size_range` | `sliderInput` | Bubble size range | `3` - `15` |
-| `bubble_palette` | `selectInput` | Colour palette | `Blues` |
+| `bubble_palette` | `selectInput` | Color palette | `Blues` |
 | `bar_plot_height` | `numericInput` | Plot height (px) | `600` |
 
 ### Keyword Filter — Pathways *(new in v1.3.1)*
@@ -1017,8 +1025,8 @@ optional DE file.
 | `chord_label_width` | `numericInput` | Max characters per pathway label line | `35` |
 | `chord_canvas` | `sliderInput` | Space around the circle for labels | `1.5` (1.2-2.5) |
 | `chord_show_title` | `checkboxInput` | Show plot title | `TRUE` |
-| `chord_pathway_color` | `textInput` | Pathway sector colour | `tomato` |
-| `chord_molecule_color` | `textInput` | Molecule sector colour | `steelblue` |
+| `chord_pathway_color` | `textInput` | Pathway sector color | `tomato` |
+| `chord_molecule_color` | `textInput` | Molecule sector color | `steelblue` |
 | `chord_plot_height` | `numericInput` | Chord plot height (px) | `750` |
 
 ### Molecule Frequency Plot Settings *(new in v1.3.0; renamed in v1.4.2)*
@@ -1031,7 +1039,7 @@ optional DE file.
 | `freq_min_pathways` | `numericInput` | Minimum # pathways a molecule must appear in | `5` |
 | `freq_top_n_genes` | `numericInput` | Show top N molecules (after filtering) | `50` |
 | `freq_plot_height` | `numericInput` | Frequency plot height (px) | `600` |
-| `freq_color_lfc` | `checkboxInput` | Colour bars by log2 fold change (needs the differential analysis file) | `TRUE` |
+| `freq_color_lfc` | `checkboxInput` | Color bars by log2 fold change (needs the differential analysis file) | `TRUE` |
 
 ### Heatmap Settings
 
@@ -1040,8 +1048,8 @@ optional DE file.
 | `selected_category` | `selectizeInput` (server-side) | Select: `<category column>` (N) | First category in keyword-filtered enrichment table; current choice kept if still available |
 | `heatmap_cluster_rows` | `checkboxInput` | Cluster rows | `TRUE` |
 | `heatmap_cluster_cols` | `checkboxInput` | Cluster columns | `FALSE` |
-| `heatmap_scale_limit` | `sliderInput` | Colour scale limit (± Z-score); lower = darker, higher = lighter | `2` |
-| `color_group_<i>` | `textInput` | Colour -- `<group>` | Cycles through preset palette |
+| `heatmap_scale_limit` | `sliderInput` | Color scale limit (± Z-score); lower = darker, higher = lighter | `2` |
+| `color_group_<i>` | `textInput` | Color -- `<group>` | Cycles through preset palette |
 | `plot_height` | `numericInput` | Heatmap height (px) | `700` |
 
 ### Boxplot / Violin Settings
@@ -1069,8 +1077,8 @@ optional DE file.
 |---|---|---|---|
 | `volcano_top_labels` | `numericInput` | Label top N significant features | `10` |
 | `volcano_label_genes` | `textInput` | Also label these features | *(blank)* |
-| `volcano_up_color` | `textInput` | Up-regulated colour | `firebrick` |
-| `volcano_down_color` | `textInput` | Down-regulated colour | `steelblue` |
+| `volcano_up_color` | `textInput` | Up-regulated color | `firebrick` |
+| `volcano_down_color` | `textInput` | Down-regulated color | `steelblue` |
 | `volcano_height` | `numericInput` | Plot height (px) | `600` |
 
 ### PCA Settings
@@ -1206,7 +1214,7 @@ server deployment documentation.
 | Boxplot / heatmap find no molecules after upload | Wrong Molecules column or separator selected | Check the detected Molecules column and separator in **Select Pathway / Functions -- Column** |
 | Molecule keyword filter misses a gene | Molecule filter needs the whole symbol | Type the full symbol (e.g. `MAPK1`), use a wildcard (`MAPK*`), or check the molecule separator setting |
 | Bar / bubble plot squeezed to the right | A very long pathway name | Set **Long pathway names** to Wrap or Truncate and lower **Max characters**; increase plot height if wrapped labels look crowded |
-| Heatmap looks washed out / too dark | Colour scale limit too high / too low | Lower the **colour scale limit** for more contrast, raise it for a lighter heatmap |
+| Heatmap looks washed out / too dark | Color scale limit too high / too low | Lower the **color scale limit** for more contrast, raise it for a lighter heatmap |
 | `object 'X' not found` on deploy | Unquoted string in `deployApp()` call | Wrap `appName` and `account` values in quotes |
 
 ---
