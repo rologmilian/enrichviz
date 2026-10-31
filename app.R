@@ -1,5 +1,6 @@
 # app.R
 # Heatmaps, Bar/Bubble Plots, Chord Diagrams, Boxplot/Violin, Volcano and PCA plots visualization
+# v.1.4.7  — volcano x-axis symmetric around 0 (option, default on)
 # v.1.4.6  — American spelling throughout the interface (color, centered, gray, ...)
 # v.1.4.5  — bubble colors: diverging scale for signed columns (NES, z-score), numeric columns only, -log10 only for p-value columns
 # v.1.4.4  — chord labels can wrap; optional prefix removal (e.g. GOBP_) for displayed pathway names
@@ -39,7 +40,7 @@ dl_size_ui <- function(key) {
 # ══════════════════════════════════════════════════════════════════════════════
 ui <- fluidPage(
   
-  tags$head(tags$title("EnrichViz v1.4.6")),
+  tags$head(tags$title("EnrichViz v1.4.7")),
   
   tags$style(HTML("
     html, body { height: 100%; overflow: hidden; }
@@ -461,6 +462,7 @@ helpText("Group colors are shared with Heatmap Settings above."),
       numericInput("volcano_top_labels", "Label top N significant features (by padj)", value = 10, min = 0, max = 200),
       textInput("volcano_label_genes", "Also label these features (comma-separated IDs)",
                 placeholder = "e.g. NPAS4, P04637, Glutamate"),
+      checkboxInput("volcano_symmetric", "Symmetric x-axis (centered at 0)", value = TRUE),
       textInput("volcano_up_color",   "Up-regulated color (hex or name)",   value = "firebrick"),
       textInput("volcano_down_color", "Down-regulated color (hex or name)", value = "steelblue"),
       numericInput("volcano_height", "Plot height (px)", value = 600, min = 300, max = 2000),
@@ -1947,7 +1949,17 @@ genes <- ipa_funct() %>%
            x = paste0("log2 fold change (", input$de_col_lfc, ")"),
            y = paste0("-log10(", input$de_col_padj, ")")) +
       theme_bw(base_size = 13) +
-      theme(plot.title = element_text(face = "bold", size = 14), legend.position = "top")
+      theme(plot.title = element_text(face = "bold", size = 14), legend.position = "top") +
+      volcano_xlim(df)
+  }
+
+  # Symmetric x-axis: from -m to +m, m = largest |log2FC| (at least the cutoff), 5% padding;
+  # coord_cartesian zooms without dropping any point
+  volcano_xlim <- function(df) {
+    if (!isTRUE(input$volcano_symmetric)) return(NULL)
+    m <- max(abs(df$lfc), input$de_lfc_cut, na.rm = TRUE)
+    if (!is.finite(m) || m == 0) return(NULL)
+    coord_cartesian(xlim = c(-m, m) * 1.05)
   }
   
   output$volcano_plot <- renderPlot({ make_volcano() }, height = function() input$volcano_height)

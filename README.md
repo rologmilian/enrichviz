@@ -1,4 +1,4 @@
-# EnrichViz Shiny App — v1.4.6
+# EnrichViz Shiny App — v1.4.7
 
 Interactive visualization of enriched pathways or biological functions from
 normalized proteomics, transcriptomics, or metabolomics data.
@@ -11,21 +11,22 @@ Licensed under the MIT License — see [License](#license) section below.
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [What's New in v1.4.6](#whats-new-in-v146)
-3. [What's New in v1.4.5](#whats-new-in-v145)
-4. [What's New in v1.4.4](#whats-new-in-v144)
-5. [What's New in v1.4.3](#whats-new-in-v143)
-6. [What's New in v1.4.2](#whats-new-in-v142)
-7. [What's New in v1.4.1](#whats-new-in-v141)
-8. [What's New in v1.4.0](#whats-new-in-v140)
-9. [What's New in v1.3.1](#whats-new-in-v131)
-10. [What's New in v1.3.0](#whats-new-in-v130)
-11. [What's New in v1.2.0](#whats-new-in-v120)
-12. [Requirements](#requirements)
-13. [Installation](#installation)
-14. [Input Files](#input-files)
-15. [App Structure](#app-structure)
-16. [Tabs and Features](#tabs-and-features)
+2. [What's New in v1.4.7](#whats-new-in-v147)
+3. [What's New in v1.4.6](#whats-new-in-v146)
+4. [What's New in v1.4.5](#whats-new-in-v145)
+5. [What's New in v1.4.4](#whats-new-in-v144)
+6. [What's New in v1.4.3](#whats-new-in-v143)
+7. [What's New in v1.4.2](#whats-new-in-v142)
+8. [What's New in v1.4.1](#whats-new-in-v141)
+9. [What's New in v1.4.0](#whats-new-in-v140)
+10. [What's New in v1.3.1](#whats-new-in-v131)
+11. [What's New in v1.3.0](#whats-new-in-v130)
+12. [What's New in v1.2.0](#whats-new-in-v120)
+13. [Requirements](#requirements)
+14. [Installation](#installation)
+15. [Input Files](#input-files)
+16. [App Structure](#app-structure)
+17. [Tabs and Features](#tabs-and-features)
    - [Tab 1 -- Bar Plot](#tab-1--bar-plot)
    - [Tab 2 -- Chord Diagram](#tab-2--chord-diagram)
    - [Tab 3 -- Molecule Frequency](#tab-3--molecule-frequency)
@@ -34,17 +35,17 @@ Licensed under the MIT License — see [License](#license) section below.
    - [Tab 6 -- Volcano](#tab-6--volcano)
    - [Tab 7 -- PCA](#tab-7--pca)
    - [Tab 8 -- DE Heatmap](#tab-8--de-heatmap)
-17. [Sidebar Controls Reference](#sidebar-controls-reference)
-18. [Download Outputs](#download-outputs)
-19. [Deployment](#deployment)
-20. [Tips and Troubleshooting](#tips-and-troubleshooting)
-21. [License](#license)
+18. [Sidebar Controls Reference](#sidebar-controls-reference)
+19. [Download Outputs](#download-outputs)
+20. [Deployment](#deployment)
+21. [Tips and Troubleshooting](#tips-and-troubleshooting)
+22. [License](#license)
 
 ---
 
 ## Overview
 
-EnrichViz (v1.4.6) is an R Shiny application for interactive exploration and
+EnrichViz (v1.4.7) is an R Shiny application for interactive exploration and
 visualization of pathway or functional enrichment results derived from
 normalized proteomics, transcriptomics, or metabolomics experiments.
 
@@ -84,7 +85,16 @@ from the sidebar or from within each tab.
 
 The page header reads *"Heatmap, Bar/Bubble, Chord, Molecule Frequency,
 Box/Violin, Volcano, and PCA Plots of Pathway and Differential Analysis
-Results"*, and the browser tab title is *"EnrichViz v1.4.6"*.
+Results"*, and the browser tab title is *"EnrichViz v1.4.7"*.
+
+---
+
+## What's New in v1.4.7
+
+- **Volcano plot:** new option **Symmetric x-axis (centered at 0)**, on by
+  default. The x-axis runs from -m to +m, where m is the largest |log2 fold
+  change| (at least the fold-change cutoff), plus 5% padding, so increases and
+  decreases are drawn on the same scale. No points are dropped.
 
 ---
 
@@ -565,7 +575,7 @@ install.packages(c("shiny", "tidyverse", "circlize", "pheatmap", "ggrepel", "rag
 ## Installation
 
 1. Clone or download this repository.
-2. Place `app.R` (v1.4.6) in a dedicated project folder.
+2. Place `app.R` (v1.4.7) in a dedicated project folder.
 3. Install all dependencies listed above.
 4. Launch the app from R or RStudio:
 
@@ -900,6 +910,7 @@ optional DE file.
 | Labels | Top N significant features by padj (`numericInput`, default 10) plus any IDs typed in the label box (case-insensitive); non-overlapping via `ggrepel` |
 | Colors | Up and Down colors (`textInput`, defaults `firebrick` / `steelblue`) |
 | padj = 0 | Capped at the smallest representable number so the point is plotted instead of being lost as infinite |
+| Symmetric x-axis | x-axis from -m to +m around 0 (m = largest \|log2FC\|, at least the cutoff, + 5%) (`checkboxInput`, default on) *(v1.4.7)* |
 | Plot height | Adjustable (`numericInput`, default 600) |
 | Status line | Reports the DE columns used, cutoffs, number of features tested (and rows removed for missing padj), and Up / Down counts |
 
