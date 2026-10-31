@@ -1,5 +1,6 @@
 # app.R
 # Heatmaps, Bar/Bubble Plots, Chord Diagrams, Boxplot/Violin, Volcano and PCA plots visualization
+# v.1.4.8  — numeric columns with blanks (e.g. IPA z-score) usable for colors; box/violin title = molecule name
 # v.1.4.7  — volcano x-axis symmetric around 0 (option, default on)
 # v.1.4.6  — American spelling throughout the interface (color, centered, gray, ...)
 # v.1.4.5  — bubble colors: diverging scale for signed columns (NES, z-score), numeric columns only, -log10 only for p-value columns
@@ -40,7 +41,7 @@ dl_size_ui <- function(key) {
 # ══════════════════════════════════════════════════════════════════════════════
 ui <- fluidPage(
   
-  tags$head(tags$title("EnrichViz v1.4.7")),
+  tags$head(tags$title("EnrichViz v1.4.8")),
   
   tags$style(HTML("
     html, body { height: 100%; overflow: hidden; }
@@ -622,7 +623,12 @@ server <- function(input, output, session) {
     sapply(seps, function(sp) mean(lengths(regmatches(x, gregexpr(sp, x, fixed = TRUE)))))
   }
   is_text_col    <- function(x) is.character(x) || is.factor(x)
-  is_numeric_col <- function(x) mean(!is.na(suppressWarnings(as.numeric(as.character(x))))) > 0.5
+  # Numeric if most *filled-in* cells are numbers; blanks/NA are ignored, so a column such as the
+  # IPA z-score (blank when no direction can be predicted) still counts as numeric
+  is_numeric_col <- function(x) {
+    v <- trimws(as.character(x)); v <- v[!is.na(v) & v != "" & toupper(v) != "NA"]
+    length(v) > 0 && mean(!is.na(suppressWarnings(as.numeric(v)))) > 0.5
+  }
 
   # First column (in file order) whose lower-cased name contains a keyword;
   # keywords are tried in priority order
@@ -1812,7 +1818,7 @@ genes <- ipa_funct() %>%
     p +
       scale_fill_manual(values   = grp_colors) +
       scale_colour_manual(values = grp_colors) +
-      labs(title    = paste0("Normalized Abundance / counts \u2014 ", protein, filter_subtitle),
+      labs(title    = paste0(protein, filter_subtitle),
            x = input$col_group, y = "Normalized abundance / counts") +
       theme_bw(base_size = 13) +
       theme(legend.position    = "none",

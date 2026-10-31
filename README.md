@@ -1,4 +1,4 @@
-# EnrichViz Shiny App — v1.4.7
+# EnrichViz Shiny App — v1.4.8
 
 Interactive visualization of enriched pathways or biological functions from
 normalized proteomics, transcriptomics, or metabolomics data.
@@ -11,22 +11,23 @@ Licensed under the MIT License — see [License](#license) section below.
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [What's New in v1.4.7](#whats-new-in-v147)
-3. [What's New in v1.4.6](#whats-new-in-v146)
-4. [What's New in v1.4.5](#whats-new-in-v145)
-5. [What's New in v1.4.4](#whats-new-in-v144)
-6. [What's New in v1.4.3](#whats-new-in-v143)
-7. [What's New in v1.4.2](#whats-new-in-v142)
-8. [What's New in v1.4.1](#whats-new-in-v141)
-9. [What's New in v1.4.0](#whats-new-in-v140)
-10. [What's New in v1.3.1](#whats-new-in-v131)
-11. [What's New in v1.3.0](#whats-new-in-v130)
-12. [What's New in v1.2.0](#whats-new-in-v120)
-13. [Requirements](#requirements)
-14. [Installation](#installation)
-15. [Input Files](#input-files)
-16. [App Structure](#app-structure)
-17. [Tabs and Features](#tabs-and-features)
+2. [What's New in v1.4.8](#whats-new-in-v148)
+3. [What's New in v1.4.7](#whats-new-in-v147)
+4. [What's New in v1.4.6](#whats-new-in-v146)
+5. [What's New in v1.4.5](#whats-new-in-v145)
+6. [What's New in v1.4.4](#whats-new-in-v144)
+7. [What's New in v1.4.3](#whats-new-in-v143)
+8. [What's New in v1.4.2](#whats-new-in-v142)
+9. [What's New in v1.4.1](#whats-new-in-v141)
+10. [What's New in v1.4.0](#whats-new-in-v140)
+11. [What's New in v1.3.1](#whats-new-in-v131)
+12. [What's New in v1.3.0](#whats-new-in-v130)
+13. [What's New in v1.2.0](#whats-new-in-v120)
+14. [Requirements](#requirements)
+15. [Installation](#installation)
+16. [Input Files](#input-files)
+17. [App Structure](#app-structure)
+18. [Tabs and Features](#tabs-and-features)
    - [Tab 1 -- Bar Plot](#tab-1--bar-plot)
    - [Tab 2 -- Chord Diagram](#tab-2--chord-diagram)
    - [Tab 3 -- Molecule Frequency](#tab-3--molecule-frequency)
@@ -35,17 +36,17 @@ Licensed under the MIT License — see [License](#license) section below.
    - [Tab 6 -- Volcano](#tab-6--volcano)
    - [Tab 7 -- PCA](#tab-7--pca)
    - [Tab 8 -- DE Heatmap](#tab-8--de-heatmap)
-18. [Sidebar Controls Reference](#sidebar-controls-reference)
-19. [Download Outputs](#download-outputs)
-20. [Deployment](#deployment)
-21. [Tips and Troubleshooting](#tips-and-troubleshooting)
-22. [License](#license)
+19. [Sidebar Controls Reference](#sidebar-controls-reference)
+20. [Download Outputs](#download-outputs)
+21. [Deployment](#deployment)
+22. [Tips and Troubleshooting](#tips-and-troubleshooting)
+23. [License](#license)
 
 ---
 
 ## Overview
 
-EnrichViz (v1.4.7) is an R Shiny application for interactive exploration and
+EnrichViz (v1.4.8) is an R Shiny application for interactive exploration and
 visualization of pathway or functional enrichment results derived from
 normalized proteomics, transcriptomics, or metabolomics experiments.
 
@@ -85,7 +86,20 @@ from the sidebar or from within each tab.
 
 The page header reads *"Heatmap, Bar/Bubble, Chord, Molecule Frequency,
 Box/Violin, Volcano, and PCA Plots of Pathway and Differential Analysis
-Results"*, and the browser tab title is *"EnrichViz v1.4.7"*.
+Results"*, and the browser tab title is *"EnrichViz v1.4.8"*.
+
+---
+
+## What's New in v1.4.8
+
+- **Fix: numeric columns with blank cells.** A column counts as numeric when most
+  of its *filled-in* cells are numbers. Before, blanks counted against it, so the
+  IPA **z-score** column (blank when IPA cannot predict a direction, e.g. 62 of 71
+  pathways in the metabolomics example) could not be chosen to color bars or
+  bubbles. Pathways without a value are drawn in gray.
+- **Box / violin plot title** is now the molecule name (plus the metadata filter,
+  if any); "Normalized abundance / counts" stays on the y-axis. The long title was
+  cut off in small panels.
 
 ---
 
@@ -575,7 +589,7 @@ install.packages(c("shiny", "tidyverse", "circlize", "pheatmap", "ggrepel", "rag
 ## Installation
 
 1. Clone or download this repository.
-2. Place `app.R` (v1.4.7) in a dedicated project folder.
+2. Place `app.R` (v1.4.8) in a dedicated project folder.
 3. Install all dependencies listed above.
 4. Launch the app from R or RStudio:
 
