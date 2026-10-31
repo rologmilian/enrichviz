@@ -1,5 +1,6 @@
 # app.R
 # Heatmaps, Bar/Bubble Plots, Chord Diagrams, Boxplot/Violin, Volcano and PCA plots visualization
+# v.1.4.5  — bubble colours: diverging scale for signed columns (NES, z-score), numeric columns only, -log10 only for p-value columns
 # v.1.4.4  — chord labels can wrap; optional prefix removal (e.g. GOBP_) for displayed pathway names
 # v.1.4.3  — download width/height per plot and text-size scaling (ragg); "Molecules" wording in heatmap status
 # v.1.4.2  — Molecule Frequency (renamed) coloured by log2FC; chord label/colour fixes; box/violin x label, trimmed violins
@@ -37,7 +38,7 @@ dl_size_ui <- function(key) {
 # ══════════════════════════════════════════════════════════════════════════════
 ui <- fluidPage(
   
-  tags$head(tags$title("EnrichViz v1.4.4")),
+  tags$head(tags$title("EnrichViz v1.4.5")),
   
   tags$style(HTML("
     html, body { height: 100%; overflow: hidden; }
@@ -311,12 +312,27 @@ ui <- fluidPage(
         sliderInput("bubble_size_range",
                     label = "Bubble size range (min / max)",
                     min = 1, max = 30, value = c(3, 15), step = 1),
-        selectInput("bubble_palette",
-                    label   = "Colour palette",
-                    choices = c("Blues", "Reds", "Purples", "Greens",
-                                "OrRd", "YlOrRd", "RdYlBu", "viridis",
-                                "magma", "plasma"),
-                    selected = "Blues")
+        radioButtons("bubble_fill_scale", "Colour scale",
+                     choices  = c("Auto" = "auto", "Gradient" = "gradient", "Diverging (centred at 0)" = "diverging"),
+                     selected = "auto", inline = TRUE),
+        helpText("Auto: diverging (white = 0) when the colour column has negative values (e.g. NES,",
+                 "z-score), otherwise a gradient. P-value columns are shown as -log10."),
+        conditionalPanel(
+          condition = "input.bubble_fill_scale != 'diverging'",
+          selectInput("bubble_palette",
+                      label   = "Gradient palette",
+                      choices = c("Blues", "Reds", "Purples", "Greens",
+                                  "OrRd", "YlOrRd", "RdYlBu", "viridis",
+                                  "magma", "plasma"),
+                      selected = "Blues")
+        ),
+        conditionalPanel(
+          condition = "input.bubble_fill_scale != 'gradient'",
+          fluidRow(
+            column(6, textInput("bubble_neg_color", "Negative colour", value = "steelblue")),
+            column(6, textInput("bubble_pos_color", "Positive colour", value = "darkorange"))
+          )
+        )
       ),
       
       numericInput("bar_plot_height", "Plot height (px)", value = 600, min = 300, max = 2000),
@@ -992,10 +1008,13 @@ ipa_funct_filtered <- reactive({
   output$ui_bubble_color_col <- renderUI({
     req(ipa_funct())
     cols    <- colnames(ipa_funct())
+    # Only numeric columns can colour bubbles (text columns would give all-grey bubbles)
+    num_cols <- cols[sapply(ipa_funct(), is_numeric_col)]
     default <- detect_pvalue_col(ipa_funct())
+    if (!default %in% num_cols && length(num_cols) > 0) default <- num_cols[1]
     selectInput("bubble_color_col",
-                label   = paste0("Bubble COLOUR intensity column (detected: '", default, "')"),
-                choices = cols, selected = default)
+                label   = paste0("Bubble COLOUR column (detected: '", default, "')"),
+                choices = num_cols, selected = default)
   })
   
   barplot_data <- reactive({
@@ -1192,7 +1211,9 @@ ipa_funct_filtered <- reactive({
                                        as.character(ipa_funct()[[input$col_category]]))]
       df$.bub_color <- color_raw[match(as.character(df[[input$col_category]]),
                                        as.character(ipa_funct()[[input$col_category]]))]
-      color_needs_transform <- all(df$.bub_color >= 0 & df$.bub_color <= 1, na.rm = TRUE)
+      # -log10 only for p-value-like columns (a 0-1 column such as IPA "Ratio" stays as is)
+      color_needs_transform <- is_pvalue_name(input$bubble_color_col) &&
+        all(df$.bub_color >= 0 & df$.bub_color <= 1, na.rm = TRUE)
       if (color_needs_transform) df$.bub_color <- -log10(df$.bub_color)
       color_label <- if (color_needs_transform)
         paste0("-log10(", input$bubble_color_col, ")") else input$bubble_color_col
@@ -1211,10 +1232,21 @@ ipa_funct_filtered <- reactive({
               plot.title         = element_text(face = "bold", size = 13),
               panel.grid.major.y = element_blank(),
               legend.position    = "right")
-      if (use_viridis) {
-        p <- p + scale_fill_viridis_c(option = palette, name = color_label)
+      signed <- any(df$.bub_color < 0, na.rm = TRUE)
+      scale  <- switch(if (is.null(input$bubble_fill_scale)) "auto" else input$bubble_fill_scale,
+                       gradient = "gradient", diverging = "diverging",
+                       if (signed) "diverging" else "gradient")
+      if (scale == "diverging") {
+        neg <- if (is.null(input$bubble_neg_color) || input$bubble_neg_color == "") "steelblue"  else input$bubble_neg_color
+        pos <- if (is.null(input$bubble_pos_color) || input$bubble_pos_color == "") "darkorange" else input$bubble_pos_color
+        lim <- max(abs(df$.bub_color), na.rm = TRUE)
+        if (!is.finite(lim) || lim == 0) lim <- 1
+        p <- p + scale_fill_gradient2(low = neg, mid = "white", high = pos, midpoint = 0,
+                                      limits = c(-lim, lim), na.value = "grey80", name = color_label)
+      } else if (use_viridis) {
+        p <- p + scale_fill_viridis_c(option = palette, na.value = "grey80", name = color_label)
       } else {
-        p <- p + scale_fill_distiller(palette = palette, direction = 1, name = color_label)
+        p <- p + scale_fill_distiller(palette = palette, direction = 1, na.value = "grey80", name = color_label)
       }
       p
     }

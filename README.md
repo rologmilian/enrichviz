@@ -1,4 +1,4 @@
-# EnrichViz Shiny App — v1.4.4
+# EnrichViz Shiny App — v1.4.5
 
 Interactive visualization of enriched pathways or biological functions from
 normalized proteomics, transcriptomics, or metabolomics data.
@@ -11,19 +11,20 @@ Licensed under the MIT License — see [License](#license) section below.
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [What's New in v1.4.4](#whats-new-in-v144)
-3. [What's New in v1.4.3](#whats-new-in-v143)
-4. [What's New in v1.4.2](#whats-new-in-v142)
-5. [What's New in v1.4.1](#whats-new-in-v141)
-6. [What's New in v1.4.0](#whats-new-in-v140)
-7. [What's New in v1.3.1](#whats-new-in-v131)
-8. [What's New in v1.3.0](#whats-new-in-v130)
-9. [What's New in v1.2.0](#whats-new-in-v120)
-10. [Requirements](#requirements)
-11. [Installation](#installation)
-12. [Input Files](#input-files)
-13. [App Structure](#app-structure)
-14. [Tabs and Features](#tabs-and-features)
+2. [What's New in v1.4.5](#whats-new-in-v145)
+3. [What's New in v1.4.4](#whats-new-in-v144)
+4. [What's New in v1.4.3](#whats-new-in-v143)
+5. [What's New in v1.4.2](#whats-new-in-v142)
+6. [What's New in v1.4.1](#whats-new-in-v141)
+7. [What's New in v1.4.0](#whats-new-in-v140)
+8. [What's New in v1.3.1](#whats-new-in-v131)
+9. [What's New in v1.3.0](#whats-new-in-v130)
+10. [What's New in v1.2.0](#whats-new-in-v120)
+11. [Requirements](#requirements)
+12. [Installation](#installation)
+13. [Input Files](#input-files)
+14. [App Structure](#app-structure)
+15. [Tabs and Features](#tabs-and-features)
    - [Tab 1 -- Bar Plot](#tab-1--bar-plot)
    - [Tab 2 -- Chord Diagram](#tab-2--chord-diagram)
    - [Tab 3 -- Molecule Frequency](#tab-3--molecule-frequency)
@@ -32,17 +33,17 @@ Licensed under the MIT License — see [License](#license) section below.
    - [Tab 6 -- Volcano](#tab-6--volcano)
    - [Tab 7 -- PCA](#tab-7--pca)
    - [Tab 8 -- DE Heatmap](#tab-8--de-heatmap)
-15. [Sidebar Controls Reference](#sidebar-controls-reference)
-16. [Download Outputs](#download-outputs)
-17. [Deployment](#deployment)
-18. [Tips and Troubleshooting](#tips-and-troubleshooting)
-19. [License](#license)
+16. [Sidebar Controls Reference](#sidebar-controls-reference)
+17. [Download Outputs](#download-outputs)
+18. [Deployment](#deployment)
+19. [Tips and Troubleshooting](#tips-and-troubleshooting)
+20. [License](#license)
 
 ---
 
 ## Overview
 
-EnrichViz (v1.4.4) is an R Shiny application for interactive exploration and
+EnrichViz (v1.4.5) is an R Shiny application for interactive exploration and
 visualization of pathway or functional enrichment results derived from
 normalized proteomics, transcriptomics, or metabolomics experiments.
 
@@ -82,7 +83,23 @@ from the sidebar or from within each tab.
 
 The page header reads *"Heatmap, Bar/Bubble, Chord, Molecule Frequency,
 Box/Violin, Volcano, and PCA Plots of Pathway and Differential Analysis
-Results"*, and the browser tab title is *"EnrichViz v1.4.4"*.
+Results"*, and the browser tab title is *"EnrichViz v1.4.5"*.
+
+---
+
+## What's New in v1.4.5
+
+### Bubble colours for signed columns
+
+- The bubble colour column now has the same **Colour scale** choice as bar
+  colouring: **Auto** (default) uses a diverging scale centred at 0 (white = 0;
+  **Negative / Positive colour**, defaults `steelblue` / `darkorange`) when the
+  column has negative values, e.g. NES (GSEA) or z-score (IPA), and the
+  selected gradient palette otherwise; **Gradient** or **Diverging** can be forced.
+- The bubble colour list shows only numeric columns.
+- A colour column is shown as -log10 only when it is a p-value-type column with
+  values between 0 and 1. Before, any 0-1 column (e.g. IPA **Ratio**) was
+  transformed.
 
 ---
 
@@ -540,7 +557,7 @@ install.packages(c("shiny", "tidyverse", "circlize", "pheatmap", "ggrepel", "rag
 ## Installation
 
 1. Clone or download this repository.
-2. Place `app.R` (v1.4.4) in a dedicated project folder.
+2. Place `app.R` (v1.4.5) in a dedicated project folder.
 3. Install all dependencies listed above.
 4. Launch the app from R or RStudio:
 
@@ -780,7 +797,7 @@ Displays pathways or functions ranked by a chosen p-value metric.
 | Missing values | Pathways without a value in the colour column are drawn in grey |
 | Bar colour | Single fill colour used when **Colour bars by** = None (`textInput`, default `steelblue`) |
 | Bubble size column | Column mapped to bubble area (`selectInput`) |
-| Bubble colour column | Column mapped to bubble fill intensity (`selectInput`) |
+| Bubble colour column | Numeric column mapped to bubble fill (`selectInput`); colour scale Auto / Gradient / Diverging as for bars (diverging centred at 0 for signed columns such as NES or z-score) *(v1.4.5)* |
 | Bubble size range | Min/max point size (`sliderInput`, default 3-15) |
 | Bubble palette | Sequential or diverging colour palette (`selectInput`) |
 | Plot height | Adjustable rendering height in pixels (`numericInput`, default 600) |
