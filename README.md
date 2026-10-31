@@ -1,4 +1,4 @@
-# EnrichViz Shiny App — v1.4.3
+# EnrichViz Shiny App — v1.4.4
 
 Interactive visualization of enriched pathways or biological functions from
 normalized proteomics, transcriptomics, or metabolomics data.
@@ -11,18 +11,19 @@ Licensed under the MIT License — see [License](#license) section below.
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [What's New in v1.4.3](#whats-new-in-v143)
-3. [What's New in v1.4.2](#whats-new-in-v142)
-4. [What's New in v1.4.1](#whats-new-in-v141)
-5. [What's New in v1.4.0](#whats-new-in-v140)
-6. [What's New in v1.3.1](#whats-new-in-v131)
-7. [What's New in v1.3.0](#whats-new-in-v130)
-8. [What's New in v1.2.0](#whats-new-in-v120)
-9. [Requirements](#requirements)
-10. [Installation](#installation)
-11. [Input Files](#input-files)
-12. [App Structure](#app-structure)
-13. [Tabs and Features](#tabs-and-features)
+2. [What's New in v1.4.4](#whats-new-in-v144)
+3. [What's New in v1.4.3](#whats-new-in-v143)
+4. [What's New in v1.4.2](#whats-new-in-v142)
+5. [What's New in v1.4.1](#whats-new-in-v141)
+6. [What's New in v1.4.0](#whats-new-in-v140)
+7. [What's New in v1.3.1](#whats-new-in-v131)
+8. [What's New in v1.3.0](#whats-new-in-v130)
+9. [What's New in v1.2.0](#whats-new-in-v120)
+10. [Requirements](#requirements)
+11. [Installation](#installation)
+12. [Input Files](#input-files)
+13. [App Structure](#app-structure)
+14. [Tabs and Features](#tabs-and-features)
    - [Tab 1 -- Bar Plot](#tab-1--bar-plot)
    - [Tab 2 -- Chord Diagram](#tab-2--chord-diagram)
    - [Tab 3 -- Molecule Frequency](#tab-3--molecule-frequency)
@@ -31,17 +32,17 @@ Licensed under the MIT License — see [License](#license) section below.
    - [Tab 6 -- Volcano](#tab-6--volcano)
    - [Tab 7 -- PCA](#tab-7--pca)
    - [Tab 8 -- DE Heatmap](#tab-8--de-heatmap)
-14. [Sidebar Controls Reference](#sidebar-controls-reference)
-15. [Download Outputs](#download-outputs)
-16. [Deployment](#deployment)
-17. [Tips and Troubleshooting](#tips-and-troubleshooting)
-18. [License](#license)
+15. [Sidebar Controls Reference](#sidebar-controls-reference)
+16. [Download Outputs](#download-outputs)
+17. [Deployment](#deployment)
+18. [Tips and Troubleshooting](#tips-and-troubleshooting)
+19. [License](#license)
 
 ---
 
 ## Overview
 
-EnrichViz (v1.4.3) is an R Shiny application for interactive exploration and
+EnrichViz (v1.4.4) is an R Shiny application for interactive exploration and
 visualization of pathway or functional enrichment results derived from
 normalized proteomics, transcriptomics, or metabolomics experiments.
 
@@ -81,7 +82,27 @@ from the sidebar or from within each tab.
 
 The page header reads *"Heatmap, Bar/Bubble, Chord, Molecule Frequency,
 Box/Violin, Volcano, and PCA Plots of Pathway and Differential Analysis
-Results"*, and the browser tab title is *"EnrichViz v1.4.3"*.
+Results"*, and the browser tab title is *"EnrichViz v1.4.4"*.
+
+---
+
+## What's New in v1.4.4
+
+### Pathway labels for publication panels
+
+- **Remove prefix from pathway names (display only)** (Bar / Bubble settings):
+  comma-separated prefixes such as `GOBP_, KEGG_, REACTOME_` are removed from
+  the start of pathway names in the bar / bubble labels, chord labels and
+  heatmap titles. Filtering, matching and the uploaded data are not affected.
+- **Chord diagram:**
+  - **Long pathway labels**: *Truncate* (default) or *Wrap (up to 3 lines)*;
+    **Max characters per pathway label line** sets the length.
+  - **Space around the circle for labels** (1.2-2.5, default 1.5): more space
+    draws a smaller circle and leaves room for long or large labels.
+  - **Show plot title** (default on): turn off for journal panels.
+  - Labels may now extend into the plot margins instead of being clipped.
+- **Heatmaps:** **Row label font size (pt)** (default 8), shared by the pathway
+  and DE heatmaps, so row names do not overlap in small panels.
 
 ---
 
@@ -110,8 +131,8 @@ placed in a journal figure (at most ~7.5 in wide) their text shrank to 3-4 pt.
   only the first 5 sample columns.
 
 Example: the panels of the manuscript's transcriptomics figure were exported at
-4.6 x 2.8 in (bar, frequency), 2.9 x 2.8 in (chord, violin), 2.9 x 3.1 in
-(heatmap) and 4.6 x 3.1 in (volcano) with a text factor of 0.6.
+2.5-3.2 in tall and 2.9-4.6 in wide with a text factor of 0.6 (see
+`example_analyses/code/05_fig2_transcriptomics_panels.R`).
 
 ---
 
@@ -519,7 +540,7 @@ install.packages(c("shiny", "tidyverse", "circlize", "pheatmap", "ggrepel", "rag
 ## Installation
 
 1. Clone or download this repository.
-2. Place `app.R` (v1.4.3) in a dedicated project folder.
+2. Place `app.R` (v1.4.4) in a dedicated project folder.
 3. Install all dependencies listed above.
 4. Launch the app from R or RStudio:
 
@@ -975,7 +996,10 @@ optional DE file.
 | `chord_inner_radius` | `sliderInput` | Link curve depth | `0.4` (range 0.2-0.9) |
 | `chord_label_size_path` | `numericInput` | Pathway label font size | `0.55` |
 | `chord_label_size_mol` | `numericInput` | Molecule label font size | `0.70` |
-| `chord_label_width` | `numericInput` | Max characters in pathway labels | `35` |
+| `chord_label_mode` | `radioButtons` | Long pathway labels: Truncate / Wrap (up to 3 lines) | `truncate` |
+| `chord_label_width` | `numericInput` | Max characters per pathway label line | `35` |
+| `chord_canvas` | `sliderInput` | Space around the circle for labels | `1.5` (1.2-2.5) |
+| `chord_show_title` | `checkboxInput` | Show plot title | `TRUE` |
 | `chord_pathway_color` | `textInput` | Pathway sector colour | `tomato` |
 | `chord_molecule_color` | `textInput` | Molecule sector colour | `steelblue` |
 | `chord_plot_height` | `numericInput` | Chord plot height (px) | `750` |

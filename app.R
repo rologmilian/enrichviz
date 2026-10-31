@@ -1,5 +1,6 @@
 # app.R
 # Heatmaps, Bar/Bubble Plots, Chord Diagrams, Boxplot/Violin, Volcano and PCA plots visualization
+# v.1.4.4  — chord labels can wrap; optional prefix removal (e.g. GOBP_) for displayed pathway names
 # v.1.4.3  — download width/height per plot and text-size scaling (ragg); "Molecules" wording in heatmap status
 # v.1.4.2  — Molecule Frequency (renamed) coloured by log2FC; chord label/colour fixes; box/violin x label, trimmed violins
 # v.1.4.1  — chord diagram no longer fails with many molecules (adaptive sector gaps)
@@ -36,7 +37,7 @@ dl_size_ui <- function(key) {
 # ══════════════════════════════════════════════════════════════════════════════
 ui <- fluidPage(
   
-  tags$head(tags$title("EnrichViz v1.4.3")),
+  tags$head(tags$title("EnrichViz v1.4.4")),
   
   tags$style(HTML("
     html, body { height: 100%; overflow: hidden; }
@@ -266,6 +267,10 @@ ui <- fluidPage(
       ),
       helpText("Wrap splits long names over up to 3 lines (at spaces, '_' or '-'); Truncate cuts them",
                "with '\u2026'. Only the axis labels change, not the data."),
+      textInput("strip_prefix", "Remove prefix from pathway names (display only)", value = "",
+                placeholder = "e.g. GOBP_, KEGG_, REACTOME_"),
+      helpText("Comma-separated prefixes removed from the start of pathway names in the bar / bubble,",
+               "chord and heatmap labels. Filters and downloads of tables are not affected."),
       
       conditionalPanel(
         condition = "input.barplot_type == 'bar'",
@@ -329,8 +334,14 @@ ui <- fluidPage(
                "This changes appearance only; it does not filter pathways or molecules."),
       numericInput("chord_label_size_path", "Pathway label font size",              value = 0.55, min = 0.3, max = 1.5, step = 0.05),
       numericInput("chord_label_size_mol",  "Molecule label font size",             value = 0.70, min = 0.3, max = 1.5, step = 0.05),
-      numericInput("chord_label_width",     "Max characters in pathway labels",     value = 35,   min = 10,  max = 150, step = 5),
-      helpText("Longer pathway names are cut and end in '\u2026' so they fit around the circle."),
+      radioButtons("chord_label_mode", "Long pathway labels",
+                   choices = c("Truncate" = "truncate", "Wrap (up to 3 lines)" = "wrap"),
+                   selected = "truncate", inline = TRUE),
+      numericInput("chord_label_width",     "Max characters per pathway label line", value = 35, min = 10, max = 150, step = 5),
+      sliderInput("chord_canvas", "Space around the circle for labels", min = 1.2, max = 2.5, value = 1.5, step = 0.05),
+      checkboxInput("chord_show_title", "Show plot title", value = TRUE),
+      helpText("Truncate cuts long pathway names with '\u2026'; Wrap splits them over up to 3 lines",
+               "(at '_', '-' or spaces). Wrapped labels need wide sectors; raise the plot size if they overlap."),
       textInput("chord_pathway_color",      "Pathway sector colour (hex or name)",  value = "tomato"),
       textInput("chord_molecule_color",     "Molecule sector colour (hex or name)", value = "steelblue"),
       numericInput("chord_plot_height",     "Chord plot height (px)",               value = 750,  min = 400, max = 2000),
@@ -378,6 +389,7 @@ ui <- fluidPage(
       # clustering toggles 
       checkboxInput("heatmap_cluster_rows", "Cluster rows",    value = TRUE),
       checkboxInput("heatmap_cluster_cols", "Cluster columns", value = FALSE),
+      numericInput("heatmap_fontsize_row", "Row label font size (pt)", value = 8, min = 2, max = 20, step = 0.5),
       
       # Colour scale limit
       sliderInput("heatmap_scale_limit",
@@ -1091,6 +1103,18 @@ ipa_funct_filtered <- reactive({
     invisible(TRUE)
   }
 
+  # Pathway names as displayed: optional user prefixes (e.g. "GOBP_") removed from the start
+  display_name <- function(x) {
+    x <- as.character(x)
+    pre <- trimws(strsplit(if (is.null(input$strip_prefix)) "" else input$strip_prefix, ",")[[1]])
+    pre <- pre[nzchar(pre)]
+    for (p in pre) {
+      hit <- startsWith(x, p) & nchar(x) > nchar(p)
+      x[hit] <- substring(x[hit], nchar(p) + 1)
+    }
+    x
+  }
+
   shorten_labels <- function(x, width = 50, mode = "wrap", max_lines = 3) {
     x <- as.character(x)
     if (is.null(mode) || mode == "full" || is.null(width) || is.na(width)) return(x)
@@ -1115,7 +1139,7 @@ ipa_funct_filtered <- reactive({
     }, character(1), USE.NAMES = FALSE)
   }
   pathway_label_scale <- function()
-    scale_y_discrete(labels = function(x) shorten_labels(x, input$label_width, input$label_mode))
+    scale_y_discrete(labels = function(x) shorten_labels(display_name(x), input$label_width, input$label_mode))
 
   make_barplot <- function() {
     req(barplot_data(), input$barplot_type)
@@ -1275,13 +1299,15 @@ ipa_funct_filtered <- reactive({
     grid_colors <- c(setNames(path_cols, rownames(mat)), setNames(mol_cols, colnames(mat)))
     lab_width   <- if (is.null(input$chord_label_width) || is.na(input$chord_label_width)) 35 else input$chord_label_width
     circos.clear()
-    par(mar = c(2, 2, 3, 2))
+    par(mar = c(2, 2, 3, 2), xpd = NA)   # xpd = NA: labels may extend into the margins instead of being clipped
     # A fixed 2-degree gap per sector fails when there are more than ~180 sectors
     # (circlize: "gap.degree is too large"), so the gaps take at most 1/4 of the circle.
     gap <- min(2, 90 / (n_path + n_mol))
-    # Extra canvas around the circle so outward-facing labels are not clipped
+    # Extra canvas around the circle so outward-facing labels are not clipped (user-adjustable:
+    # larger values leave more room for long or large labels and draw a smaller circle)
+    canvas <- if (is.null(input$chord_canvas) || is.na(input$chord_canvas)) 1.5 else input$chord_canvas
     circos.par("gap.after" = gap, "start.degree" = 90,
-               "canvas.xlim" = c(-1.5, 1.5), "canvas.ylim" = c(-1.5, 1.5))
+               "canvas.xlim" = c(-canvas, canvas), "canvas.ylim" = c(-canvas, canvas))
     chordDiagram(mat, h = input$chord_inner_radius, grid.col = grid_colors,
                  transparency = 0.4, annotationTrack = "grid",
                  preAllocateTracks = list(track.height = 0.08), directional = FALSE)
@@ -1290,12 +1316,14 @@ ipa_funct_filtered <- reactive({
       xlim        <- get.cell.meta.data("xlim")
       ylim        <- get.cell.meta.data("ylim")
       is_pathway  <- sector_name %in% rownames(mat)
-      label       <- if (is_pathway) shorten_labels(sector_name, lab_width, "truncate") else sector_name
+      lab_mode    <- if (identical(input$chord_label_mode, "wrap")) "wrap" else "truncate"
+      label       <- if (is_pathway) shorten_labels(display_name(sector_name), lab_width, lab_mode) else sector_name
       circos.text(mean(xlim), ylim[1] + 0.1, label,
                   facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5),
                   cex = if (is_pathway) input$chord_label_size_path else input$chord_label_size_mol)
     }, bg.border = NA)
-    title(paste0("Chord Diagram \u2014 Top ", n_distinct(cd$pathway), " Pathways & Molecules"), cex.main = 1.1)
+    if (!isFALSE(input$chord_show_title))
+      title(paste0("Chord Diagram \u2014 Top ", n_distinct(cd$pathway), " Pathways & Molecules"), cex.main = 1.1)
     legend("bottomleft", legend = c("Pathways / Functions", "Molecules"),
            fill = c(pathway_color, molecule_color), border = NA, bty = "n", cex = 0.85)
     circos.clear()
@@ -1533,7 +1561,9 @@ ipa_funct_filtered <- reactive({
       scale             = "none",
       color             = colorRampPalette(c("darkblue", "white", "darkred"))(100),
       breaks            = breaks_sym,
-      border_color      = NA, fontsize_row = 8, fontsize_col = 10,
+      border_color      = NA,
+      fontsize_row      = if (is.null(input$heatmap_fontsize_row) || is.na(input$heatmap_fontsize_row)) 8 else input$heatmap_fontsize_row,
+      fontsize_col      = 10,
       main              = paste0(title_text, filter_subtitle)
     )
   }
@@ -1541,7 +1571,7 @@ ipa_funct_filtered <- reactive({
   output$heatmap_plot <- renderPlot({
     req(norm_prot(), annotation(), genes_interest(), input$selected_category)
     make_heatmap(gene_filter = genes_interest(),
-                 title_text  = paste0(shorten_labels(input$selected_category, 30, "wrap", max_lines = 4), "\n(Z-score, by Group)"))
+                 title_text  = paste0(shorten_labels(display_name(input$selected_category), 30, "wrap", max_lines = 4), "\n(Z-score, by Group)"))
   }, height = function() input$plot_height)
   
   dl_single_filename <- function()
@@ -1549,7 +1579,7 @@ ipa_funct_filtered <- reactive({
   dl_single_handler  <- function(file) {
     dl_png(file, "heat", function()
       make_heatmap(gene_filter = genes_interest(),
-                   title_text  = paste0(shorten_labels(input$selected_category, 30, "wrap", max_lines = 4), "\n(Z-score, by Group)")))
+                   title_text  = paste0(shorten_labels(display_name(input$selected_category), 30, "wrap", max_lines = 4), "\n(Z-score, by Group)")))
   }
   output$download_single      <- downloadHandler(filename = dl_single_filename, content = dl_single_handler)
   output$download_single_main <- downloadHandler(filename = dl_single_filename, content = dl_single_handler)
@@ -1604,7 +1634,7 @@ genes <- ipa_funct() %>%
       # A category that cannot be drawn (e.g. all genes zero-variance) is skipped
       # instead of aborting the whole archive; the device is always closed.
       ok <- tryCatch(dl_png(png_path, "heat", function()
-        make_heatmap(gene_filter = genes, title_text = paste0(shorten_labels(cat_val, 30, "wrap", max_lines = 4), "\n(Z-score, by Group)"))),
+        make_heatmap(gene_filter = genes, title_text = paste0(shorten_labels(display_name(cat_val), 30, "wrap", max_lines = 4), "\n(Z-score, by Group)"))),
         error = function(e) FALSE)
       if (ok) saved <- c(saved, png_path) else unlink(png_path)
     }
