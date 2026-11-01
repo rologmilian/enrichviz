@@ -1,5 +1,7 @@
 # EnrichViz Shiny App — v1.4.8
 
+[![DOI](https://zenodo.org/badge/1257468732.svg)](https://doi.org/10.5281/zenodo.23866633)
+
 Interactive visualization of enriched pathways or biological functions from
 normalized proteomics, transcriptomics, or metabolomics data.
 
