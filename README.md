@@ -604,8 +604,10 @@ Or open `app.R` in RStudio and click **Run App**.
 ## Input Files
 
 EnrichViz expects **three CSV files** (`.csv`), plus an **optional fourth**
-file for differential analysis. All files must have a header row. Maximum
-upload size is 500 MB per file.
+file for differential analysis. All files must be **plain tables**: the
+column names in the first row and no other lines above or below the table
+(for example, delete the copyright line at the top of IPA exports before
+saving as CSV). Maximum upload size is 500 MB per file.
 
 ### 1. Normalized Data File
 
@@ -660,8 +662,9 @@ A results table from a pathway or functional enrichment analysis where:
   only the Bar Plot works.
 
 The app detects all three columns and the separator automatically; every
-choice can be changed in the sidebar. Any lines above the header row (such
-as IPA's copyright line) are skipped.
+choice can be changed in the sidebar. The table must start with the column
+names: delete any lines above them (such as IPA's copyright line) before
+upload.
 
 Example layout:
 
