@@ -1,4 +1,4 @@
-# EnrichViz Shiny App — v1.4.8
+# EnrichViz Shiny App — v1.5.0
 
 [![DOI](https://zenodo.org/badge/1257468732.svg)](https://doi.org/10.5281/zenodo.23866633)
 
@@ -13,23 +13,24 @@ Licensed under the MIT License — see [License](#license) section below.
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [What's New in v1.4.8](#whats-new-in-v148)
-3. [What's New in v1.4.7](#whats-new-in-v147)
-4. [What's New in v1.4.6](#whats-new-in-v146)
-5. [What's New in v1.4.5](#whats-new-in-v145)
-6. [What's New in v1.4.4](#whats-new-in-v144)
-7. [What's New in v1.4.3](#whats-new-in-v143)
-8. [What's New in v1.4.2](#whats-new-in-v142)
-9. [What's New in v1.4.1](#whats-new-in-v141)
-10. [What's New in v1.4.0](#whats-new-in-v140)
-11. [What's New in v1.3.1](#whats-new-in-v131)
-12. [What's New in v1.3.0](#whats-new-in-v130)
-13. [What's New in v1.2.0](#whats-new-in-v120)
-14. [Requirements](#requirements)
-15. [Installation](#installation)
-16. [Input Files](#input-files)
-17. [App Structure](#app-structure)
-18. [Tabs and Features](#tabs-and-features)
+2. [What's New in v1.5.0](#whats-new-in-v150)
+3. [What's New in v1.4.8](#whats-new-in-v148)
+4. [What's New in v1.4.7](#whats-new-in-v147)
+5. [What's New in v1.4.6](#whats-new-in-v146)
+6. [What's New in v1.4.5](#whats-new-in-v145)
+7. [What's New in v1.4.4](#whats-new-in-v144)
+8. [What's New in v1.4.3](#whats-new-in-v143)
+9. [What's New in v1.4.2](#whats-new-in-v142)
+10. [What's New in v1.4.1](#whats-new-in-v141)
+11. [What's New in v1.4.0](#whats-new-in-v140)
+12. [What's New in v1.3.1](#whats-new-in-v131)
+13. [What's New in v1.3.0](#whats-new-in-v130)
+14. [What's New in v1.2.0](#whats-new-in-v120)
+15. [Requirements](#requirements)
+16. [Installation](#installation)
+17. [Input Files](#input-files)
+18. [App Structure](#app-structure)
+19. [Tabs and Features](#tabs-and-features)
    - [Tab 1 -- Bar Plot](#tab-1--bar-plot)
    - [Tab 2 -- Chord Diagram](#tab-2--chord-diagram)
    - [Tab 3 -- Molecule Frequency](#tab-3--molecule-frequency)
@@ -38,17 +39,18 @@ Licensed under the MIT License — see [License](#license) section below.
    - [Tab 6 -- Volcano](#tab-6--volcano)
    - [Tab 7 -- PCA](#tab-7--pca)
    - [Tab 8 -- DE Heatmap](#tab-8--de-heatmap)
-19. [Sidebar Controls Reference](#sidebar-controls-reference)
-20. [Download Outputs](#download-outputs)
-21. [Deployment](#deployment)
-22. [Tips and Troubleshooting](#tips-and-troubleshooting)
-23. [License](#license)
+20. [Sidebar Controls Reference](#sidebar-controls-reference)
+21. [Download Outputs](#download-outputs)
+22. [Testing](#testing)
+23. [Deployment](#deployment)
+24. [Tips and Troubleshooting](#tips-and-troubleshooting)
+25. [License](#license)
 
 ---
 
 ## Overview
 
-EnrichViz (v1.4.8) is an R Shiny application for interactive exploration and
+EnrichViz (v1.5.0) is an R Shiny application for interactive exploration and
 visualization of pathway or functional enrichment results derived from
 normalized proteomics, transcriptomics, or metabolomics experiments.
 
@@ -86,9 +88,44 @@ genes, transcripts, proteins, or metabolites.
 All plots can be downloaded as publication-ready PNG files directly
 from the sidebar or from within each tab.
 
-The page header reads *"Heatmap, Bar/Bubble, Chord, Molecule Frequency,
+The page header reads *"EnrichViz v1.5.0 — Heatmap, Bar/Bubble, Chord, Molecule Frequency,
 Box/Violin, Volcano, and PCA Plots of Pathway and Differential Analysis
-Results"*, and the browser tab title is *"EnrichViz v1.4.8"*.
+Results"*, and the browser tab title is *"EnrichViz v1.5.0"*.
+
+---
+
+## What's New in v1.5.0
+
+Changes made after a review of the manuscript by a biologist and a computational biologist.
+
+- **One log2(x + 1) switch for all sample-level views.** The option now applies to the
+  pathway heatmap and the box/violin plot as well as to PCA and the DE heatmap (before, the
+  pathway heatmap and box/violin plot always used the uploaded values). It moved next to the
+  Gene/Protein ID column selector. Keep it on for linear-scale data (e.g. normalized RNA-seq
+  counts); turn it off for log-scale data (proteomics, metabolomics).
+- **Warning for data that look already log-transformed.** When the option is on and 99% of
+  the values are below 50, a warning appears under the option and in the status lines.
+- **Transformation in every status line** of the sample-level views.
+- **IPA Benjamini-Hochberg columns** (`-log(B-H p-value)`, `B-H corrected p-value`) are taken
+  as adjusted p-values, so they are preferred over the raw p-value columns.
+- **Same group order in every view:** the order in which groups first appear in the sample
+  annotation (heatmaps used alphabetical order before; box plots and colors already used the
+  annotation order). The PCA legend follows the same order.
+- **Distinct chord-diagram labels.** When two pathway names become identical after
+  truncation, the start and the end of the name are kept (e.g. `POSITIVE_RE…PRODUCTION`);
+  names that still collide are numbered `[1]`, `[2]`.
+- **DE heatmap title** reads "log2FC ≥ x or ≤ −x" (the vertical bars of |log2FC| printed like the letter I).
+- **Gray = no value** is stated under bar and bubble plots when some pathways have no value
+  in the color column (e.g. IPA z-score).
+- **Ties in significance** in the bar/bubble plot are ordered by the bar color column (bar
+  plot) or the bubble size column (bubble plot), largest first; the status line says so.
+- **Bar/bubble plot title** starts at the left edge of the plot, so it is not cut off when the
+  pathway names are long.
+- **Editable box/violin y-axis label** (`boxplot_ylab`); when blank, it reads
+  "log2(normalized value + 1)" or "Normalized value", depending on the log2 option.
+- **App version in the status lines and in every download file name** (e.g.
+  `Volcano_20261101_120000_v1.5.0.png`).
+- **Automated tests** in `tests/` (see [Testing](#testing)).
 
 ---
 
@@ -591,7 +628,7 @@ install.packages(c("shiny", "tidyverse", "circlize", "pheatmap", "ggrepel", "rag
 ## Installation
 
 1. Clone or download this repository.
-2. Place `app.R` (v1.4.8) in a dedicated project folder.
+2. Place `app.R` (v1.5.0) in a dedicated project folder.
 3. Install all dependencies listed above.
 4. Launch the app from R or RStudio:
 
@@ -707,7 +744,7 @@ How detection works:
   separators. If none exists, the selector shows **(none)** and the views that
   need members explain why they are empty.
 - **Significance:** adjusted p-values (`padj`, `p.adjust`, `Adjusted
-  P-value`, `FDR`, `Benjamini`, `qvalue`, ...) are preferred over raw
+  P-value`, `FDR`, `Benjamini`, IPA `B-H`, `qvalue`, ...) are preferred over raw
   p-values, then -log10 columns. Only numeric columns are considered.
 - **Separator:** the character (`,` `/` `;` `|`) found most often in the
   members column.
@@ -795,8 +832,9 @@ The sidebar is divided into clearly labeled sections:
 - **Boxplot / Violin Settings** -- molecule selector, plot type, height,
   download button.
 - **Differential Analysis** (green panel) -- DE column selectors,
-  fold-change and adjusted p-value cutoffs, up/down count badge, and the
-  log2(x + 1) toggle used by PCA and the DE heatmap.
+  fold-change and adjusted p-value cutoffs and up/down count badge. The
+  log2(x + 1) toggle used by all sample-level views is under the Gene/Protein ID
+  column selector (since v1.5.0).
 - **Volcano Plot Settings** -- labels, colors, height, download button.
 - **PCA Settings** -- feature set, scaling, PCs to plot, sample labels,
   height, download button.
@@ -890,11 +928,12 @@ User can select clustering or not for the columns/samples.
 | Category selector | Choose one pathway or function to visualize (`selectizeInput` with type-ahead search); list is restricted to keyword-filtered pathways *(new in v1.3.1)*. The label shows how many pathways are available, and the current choice is kept when the filter changes if it is still in the list |
 | Per-group colors | One `textInput` per group (hex or name) for the column annotation bar |
 | Row clustering | Hierarchical clustering of molecules (`checkboxInput`, default on) |
-| Column clustering | Optional (`checkboxInput`, default off); when off, columns are ordered by group for comparability |
+| Column clustering | Optional (`checkboxInput`, default off); when off, columns are ordered by group, in the order the groups first appear in the annotation |
 | Color scale limit | Symmetric ± Z-score limit for the color scale (`sliderInput`, 1-4, default 2). Z-scores beyond the limit get the darkest color: **lower** values give a darker, higher-contrast heatmap where small differences stand out; **higher** values give a lighter heatmap with more shades between extremes. Shared with the DE Heatmap |
 | Row name display | Shown when <= 100 molecules are matched |
 | Column name display | Sample names shown when <= 60 samples (hidden above that to stay readable) |
-| Z-score scaling | Applied row-wise before rendering |
+| log2(x + 1) | Applied before Z-scoring when the shared toggle is on (since v1.5.0) |
+| Z-score scaling | Applied row-wise before rendering, across the samples left after the metadata filter |
 | Plot title | Includes the selected category name and active metadata filter |
 | Plot height | Adjustable rendering height in pixels (`numericInput`, default 700) |
 | Batch download | **Download Filtered Heatmaps (N) (.zip)** -- one PNG per keyword-filtered pathway; see below |
@@ -909,7 +948,8 @@ molecule across sample groups, using only the filtered samples.
 |---|---|
 | Molecule selector | `selectizeInput` with type-ahead search; lists all molecules present in both the enrichment file and the normalized data, with the matched count in the label |
 | Plot type toggle | Switch between boxplot and violin plot (`radioButtons`); violins end at the observed minimum and maximum (`trim = TRUE`) |
-| Axes | x-axis labeled with the group column name; y-axis "Normalized abundance / counts" |
+| Values | log2(x + 1) of the normalized values when the shared toggle is on (since v1.5.0) |
+| Axes | x-axis labeled with the group column name; y-axis label editable (`boxplot_ylab`), by default "log2(normalized value + 1)" or "Normalized value" |
 | Data points overlay | Individual sample points overlaid via `geom_jitter` (always on) |
 | Color by group | Per-group colors shared with the Heatmap Settings section |
 | Plot subtitle | Shows the active metadata filter when one is set |
@@ -945,7 +985,7 @@ DE file unless the DE-significant feature set is chosen.
 | Feature | Details |
 |---|---|
 | Features used | All features, the top N most variable features (default 500), or only DE-significant features passing the cutoffs (`radioButtons`) |
-| log2(x + 1) | Applied when the shared toggle in the Differential Analysis panel is on (default). Turn it off for data that are already log-transformed, as is common for proteomics and metabolomics. The app stops with a message if the data contain negative values while the toggle is on |
+| log2(x + 1) | Applied when the shared toggle (under the Gene/Protein ID column selector) is on (default). Turn it off for data that are already log-transformed, as is common for proteomics and metabolomics. The app stops with a message if the data contain negative values while the toggle is on |
 | Scaling | Features are always centered; optionally scaled to unit variance (`checkboxInput`, default off) |
 | PCs | Choose which components go on the x and y axes (default PC1 vs PC2); axis labels show % variance explained |
 | Colors | Points colored by the group column, using the per-group colors from Heatmap Settings |
@@ -1088,6 +1128,7 @@ optional DE file.
 |---|---|---|---|
 | `plot_type` | `radioButtons` | Plot type | `box` |
 | `boxplot_protein` | `selectizeInput` (server-side) | Search protein / gene / metabolite (N matched) | First matched molecule; current choice kept if still available |
+| `boxplot_ylab` | `textInput` | Y-axis label (blank = automatic) | blank |
 | `boxplot_height` | `numericInput` | Plot height (px) | `500` |
 
 ### Differential Analysis
@@ -1099,7 +1140,7 @@ optional DE file.
 | `de_col_padj` | `selectInput` | Adjusted p-value column | Auto-detected by keyword |
 | `de_lfc_cut` | `numericInput` | \|log2 fold change\| >= | `1` |
 | `de_padj_cut` | `numericInput` | Adjusted p-value < | `0.05` |
-| `de_log_transform` | `checkboxInput` | Apply log2(x + 1) to normalized data (PCA & DE heatmap) | `TRUE` |
+| `de_log_transform` | `checkboxInput` | Apply log2(x + 1) to normalized data (heatmaps, box/violin plots, PCA) | `TRUE`; a warning appears if the data look already log-transformed |
 
 ### Volcano Plot Settings
 
@@ -1152,20 +1193,21 @@ button; the sizes below are the defaults), and the sidebar input
 | `download_pca` / `download_pca_main` | Download PCA Plot (.png) | PNG, 9 x 7 in, 300 DPI |
 | `download_de_heatmap` / `download_de_heatmap_main` | Download DE Heatmap (.png) | PNG, 8 x 10 in, 300 DPI |
 
-File names are auto-generated in the format:
+File names are auto-generated in the format below; since v1.5.0 every name ends with the
+app version (e.g. `_v1.5.0`):
 
 ```
-Barplot_Enriched_Pathways_YYYYMMDD_HHMMSS.png
-Bubbleplot_Enriched_Pathways_YYYYMMDD_HHMMSS.png
-Chord_Diagram_Pathways_Molecules.png
-Molecule_Frequency_YYYYMMDD_HHMMSS.png
-Heatmap_<Category>.png
-Filtered_Heatmaps_YYYYMMDD_HHMMSS.zip   (contains Heatmap_<Category>.png files)
-Boxplot_<Molecule>.png
-Violin_<Molecule>.png
-Volcano_YYYYMMDD_HHMMSS.png
-PCA_YYYYMMDD_HHMMSS.png
-DE_Heatmap_YYYYMMDD_HHMMSS.png
+Barplot_Enriched_Pathways_YYYYMMDD_HHMMSS_v1.5.0.png
+Bubbleplot_Enriched_Pathways_YYYYMMDD_HHMMSS_v1.5.0.png
+Chord_Diagram_Pathways_Molecules_v1.5.0.png
+Molecule_Frequency_YYYYMMDD_HHMMSS_v1.5.0.png
+Heatmap_<Category>_v1.5.0.png
+Filtered_Heatmaps_YYYYMMDD_HHMMSS_v1.5.0.zip   (contains Heatmap_<Category>_v1.5.0.png files)
+Boxplot_<Molecule>_v1.5.0.png
+Violin_<Molecule>_v1.5.0.png
+Volcano_YYYYMMDD_HHMMSS_v1.5.0.png
+PCA_YYYYMMDD_HHMMSS_v1.5.0.png
+DE_Heatmap_YYYYMMDD_HHMMSS_v1.5.0.png
 ```
 
 ### Batch heatmap download
@@ -1182,6 +1224,33 @@ the batch download is restricted:
   message asking you to narrow the filter.
 - Pathways that cannot be drawn (fewer than 2 matched features, or zero
   variance) are skipped.
+
+---
+
+## Testing
+
+Automated tests (since v1.5.0) are in `tests/testthat/`:
+
+- `test-detection.R` -- column recognition for the export layouts of clusterProfiler (GSEA and
+  ORA), g:Profiler, Enrichr, DAVID, fgsea, IPA (canonical pathways and upstream regulators),
+  WebGestalt and MetaboAnalyst; reading a CSV with a copyright line above the header;
+  distinct chord labels; the version suffix of file names. The helper functions are loaded
+  from `app.R` without starting the app.
+- `test-app.R` -- starts the app with a small synthetic dataset (shinytest2) and checks that
+  all eight views are drawn, that the status lines report the version, the transformation and
+  tied pathways, that download names carry the version, and that log-scale data with the
+  log2 option on give a warning.
+
+Run them from the app folder (the app test needs Chrome, used by shinytest2):
+
+```r
+shinytest2::test_app(".")
+# or only the detection tests (no browser needed):
+testthat::test_file("tests/testthat/test-detection.R")
+```
+
+Install the test packages once with `install.packages(c("testthat", "shinytest2"))`. The tests
+are not needed to run the app and are not deployed.
 
 ---
 
@@ -1205,9 +1274,10 @@ rsconnect::setAccountInfo(
 )
 
 rsconnect::deployApp(
-  appDir  = "path/to/project",
-  appName = "EnrichViz",
-  account = "your-account-name"
+  appDir   = "path/to/project",
+  appFiles = "app.R",            # deploy the app only (not tests/ or local test data)
+  appName  = "EnrichViz",
+  account  = "your-account-name"
 )
 ```
 
@@ -1238,7 +1308,7 @@ server deployment documentation.
 | `there is no package called 'tidyverse'` on launch | Dependencies installed individually | Run `install.packages("tidyverse")` |
 | Volcano / DE Heatmap tabs show nothing | DE file not uploaded | Upload the optional differential analysis file |
 | DE Heatmap: "Fewer than 2 significant features found" | Cutoffs too strict, or DE IDs differ from the normalized data IDs (e.g. Entrez vs symbol, UniProt vs gene name) | Relax the cutoffs, or pick matching ID columns in both the DE and Normalized data selectors |
-| PCA / DE Heatmap: "Data contain negative values" | Data are already log-transformed | Untick **Apply log2(x + 1)** in the Differential Analysis panel |
+| Heatmap, Boxplot, PCA, DE Heatmap: "Data contain negative values" or a warning that the data look already log-transformed | Data are already log-transformed | Untick **Apply log2(x + 1)** under the Gene/Protein ID column selector |
 | PCA looks dominated by a few features | Very different feature scales (common in metabolomics) | Tick **Scale features to unit variance** |
 | No "Download Filtered Heatmaps" button | No keyword filter active, or more than 100 pathways match | Enter a pathway-name or molecule keyword and narrow it until <= 100 pathways match |
 | Boxplot / heatmap find no molecules after upload | Wrong Molecules column or separator selected | Check the detected Molecules column and separator in **Select Pathway / Functions -- Column** |
